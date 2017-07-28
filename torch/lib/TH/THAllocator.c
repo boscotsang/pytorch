@@ -121,6 +121,10 @@ void THMapAllocatorContext_free(THMapAllocatorContext *ctx)
 
 static void *_map_alloc(void* ctx_, ptrdiff_t size)
 {
+  if (size == 0) {
+    return NULL;
+  }
+
   THMapAllocatorContext *ctx = ctx_;
   void *data = NULL;
 
@@ -383,6 +387,9 @@ static void *THMapAllocator_realloc(void* ctx, void* ptr, ptrdiff_t size) {
 }
 
 static void THMapAllocator_free(void* ctx_, void* data) {
+  if (data == NULL)
+    return;
+
   THMapAllocatorContext *ctx = ctx_;
 
 #ifdef _WIN32

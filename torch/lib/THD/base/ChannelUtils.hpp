@@ -67,7 +67,10 @@ namespace thd {
 
 using rank_type = std::uint32_t;
 using port_type = std::uint16_t;
+<<<<<<< HEAD
 
+=======
+>>>>>>> master
 using size_type = std::uint64_t;
 
 #define SYSCHECK(expr) { \
@@ -75,8 +78,11 @@ using size_type = std::uint64_t;
   if (errno != 0) throw std::system_error(errno, std::system_category()); \
 }
 
+<<<<<<< HEAD
 const char* must_getenv(const char* env);
 
+=======
+>>>>>>> master
 template<typename T>
 void send_bytes(int socket, const T* buffer, std::size_t length, bool more_data = false)
 {
@@ -141,6 +147,7 @@ inline rank_type convertToRank(long rank, long min = 0) {
   return static_cast<rank_type>(rank);
 }
 
+<<<<<<< HEAD
 std::tuple<int, port_type> listen(port_type port = 0);
 int connect(const std::string& address, port_type port, bool wait = true);
 std::tuple<int, std::string> accept(int listen_socket, int timeout = -1);
@@ -149,6 +156,14 @@ std::tuple<port_type, rank_type> load_master_env();
 std::tuple<std::string, port_type> load_worker_env();
 rank_type load_rank_env();
 rank_type load_world_size_env();
+=======
+std::pair<int, port_type> listen(port_type port = 0);
+int connect(const std::string& address, port_type port, bool wait = true, int timeout = -1);
+std::tuple<int, std::string> accept(int listen_socket, int timeout = -1);
+
+std::string sockaddrToString(struct sockaddr *addr);
+std::pair<std::string, std::string> splitAddress(const std::string &addr);
+>>>>>>> master
 
 /* send a string's length and data */
 inline void send_string(int socket, const std::string& str,
@@ -188,8 +203,40 @@ std::vector<T> recv_vector(int socket) {
 
 /* this is only for convenience when sending rvalues */
 template<typename T>
+<<<<<<< HEAD
 void send_value(int socket, T&& value, bool more_data = false) {
   send_bytes<T>(socket, &value, 1, more_data);
 }
 
+=======
+void send_value(int socket, const T& value, bool more_data = false) {
+  send_bytes<T>(socket, &value, 1, more_data);
+}
+
+template<typename T>
+T recv_value(int socket) {
+  T value;
+  recv_bytes<T>(socket, &value, 1);
+  return value;
+}
+
+class ResourceGuard {
+  std::function<void()> _destructor;
+  bool _released;
+
+public:
+  ResourceGuard(std::function<void()> destructor)
+    : _destructor(std::move(destructor))
+    , _released(false) {}
+
+  ~ResourceGuard() {
+    if (!_released) _destructor();
+  }
+
+  void release() {
+    _released = true;
+  }
+};
+
+>>>>>>> master
 } // namespace thd

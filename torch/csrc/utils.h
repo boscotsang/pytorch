@@ -7,12 +7,14 @@
 #include <type_traits>
 
 #include "torch/csrc/utils/object_ptr.h"
+#include "torch/csrc/utils/python_numbers.h"
 
 #define THPUtils_(NAME) TH_CONCAT_4(THP,Real,Utils_,NAME)
 
 #define THPUtils_typename(obj) (Py_TYPE(obj)->tp_name)
 
 
+<<<<<<< HEAD
 #if PY_MAJOR_VERSION == 2
 #define THPUtils_checkLong(obj) ((PyLong_Check(obj) || PyInt_Check(obj)) && !PyBool_Check(obj))
 #define THPUtils_unpackLong(obj)                                               \
@@ -25,6 +27,8 @@
     (PyLong_Check(obj) ? PyLong_AsLongLong(obj) :                              \
     (throw std::runtime_error("Could not unpack long"), 0))
 #endif
+=======
+>>>>>>> master
 
 #if PY_MAJOR_VERSION == 2
 #define THPUtils_checkReal_FLOAT(object)                                       \
@@ -185,6 +189,12 @@ struct mod_traits<_real, typename std::enable_if<std::is_integral<_real>::value>
   static _real mod(_real a, _real b) { return a % b; }
 };
 
+void setBackCompatBroadcastWarn(bool warn);
+bool getBackCompatBroadcastWarn();
+
+void setBackCompatKeepdimWarn(bool warn);
+bool getBackCompatKeepdimWarn();
+bool maybeThrowBackCompatKeepdimWarn(char *func);
 
 #endif /* _THP_CORE */
 

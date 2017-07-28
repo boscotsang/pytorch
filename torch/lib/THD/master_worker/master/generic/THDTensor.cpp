@@ -114,6 +114,7 @@ THDTensor *THDTensor_(newWithSize)(THLongStorage *size, THLongStorage *stride) {
   THDTensor* tensor = THDTensor_(_alloc)();
   if (size && stride)
     THArgCheck(size->size == stride->size, 4, "inconsistent size");
+<<<<<<< HEAD
   long *size_cpy = size ? new long[size->size] : nullptr;
   long *stride_cpy = stride ? new long[stride->size] : nullptr;
   memcpy(size_cpy, size->data, size->size * sizeof(long));
@@ -121,6 +122,9 @@ THDTensor *THDTensor_(newWithSize)(THLongStorage *size, THLongStorage *stride) {
     memcpy(stride_cpy, stride->data, stride->size * sizeof(long));
   tensor->size = size_cpy;
   tensor->stride = stride_cpy;
+=======
+  THDTensor_(_resize)(tensor, size->size, size->data, stride ? stride->data : nullptr);
+>>>>>>> master
   thpp::Type constructed_type = thpp::type_traits<real>::type;
   masterCommandChannel->sendMessage(
     packMessage(
@@ -256,28 +260,58 @@ THDTensor *THDTensor_(newContiguous)(THDTensor *self) {
 }
 
 THDTensor *THDTensor_(newSelect)(THDTensor *tensor, int dimension, long sliceIndex) {
+<<<<<<< HEAD
   THDTensor *self = THDTensor_(newWithTensor)(tensor); 
+=======
+  THDTensor *self = THDTensor_(newWithTensor)(tensor);
+>>>>>>> master
   THDTensor_(select)(self, NULL, dimension, sliceIndex);
   return self;
 }
 
 THDTensor *THDTensor_(newNarrow)(THDTensor *tensor, int dimension,
                                  long firstIndex, long size) {
+<<<<<<< HEAD
   THDTensor *self = THDTensor_(newWithTensor)(tensor); 
+=======
+  THDTensor *self = THDTensor_(newWithTensor)(tensor);
+>>>>>>> master
   THDTensor_(narrow)(self, NULL, dimension, firstIndex, size);
   return self;
 }
 
 THDTensor *THDTensor_(newTranspose)(THDTensor *tensor, int dimension1, int dimension2) {
+<<<<<<< HEAD
   THDTensor *self = THDTensor_(newWithTensor)(tensor); 
+=======
+  THDTensor *self = THDTensor_(newWithTensor)(tensor);
+>>>>>>> master
   THDTensor_(transpose)(self, NULL, dimension1, dimension2);
   return self;
 }
 
 THDTensor *THDTensor_(newUnfold)(THDTensor *tensor, int dimension, long size, long step) {
+<<<<<<< HEAD
   THDTensor *self = THDTensor_(newWithTensor)(tensor); 
   THDTensor_(unfold)(self, NULL, dimension, size, step);
   return self;
+=======
+  THDTensor *self = THDTensor_(newWithTensor)(tensor);
+  THDTensor_(unfold)(self, NULL, dimension, size, step);
+  return self;
+}
+
+THDTensor *THDTensor_(newView)(THDTensor *tensor, THLongStorage *size) {
+  // TODO
+  THError("newView not implemented");
+  return nullptr;
+}
+
+THDTensor *THDTensor_(newExpand)(THDTensor *tensor, THLongStorage *size) {
+  // TODO
+  THError("newExpand not implemented");
+  return nullptr;
+>>>>>>> master
 }
 
 void THDTensor_(resize)(THDTensor *tensor, THLongStorage *size, THLongStorage *stride) {
@@ -377,6 +411,19 @@ void THDTensor_(resize5d)(THDTensor *tensor, long size0, long size1, long size2,
     THDState::s_current_worker
   );
   THDTensor_(_resize5d)(tensor, size0, size1, size2, size3, size4);
+<<<<<<< HEAD
+=======
+}
+
+real THDTensor_(get1d)(const THDTensor *tensor, long x0)
+{
+  // TODO
+  THError("get1d not supported!");
+  //THArgCheck(tensor->nDimension == 1, 1, "tensor must have one dimension");
+  //THArgCheck( (x0 >= 0) && (x0 < tensor->size[0]), 2, "out of range");
+  //return THDStorage_(get)(tensor->storage, tensor->storageOffset+x0*tensor->stride[0]);
+  return 0;
+>>>>>>> master
 }
 
 void THDTensor_(set)(THDTensor *self, THDTensor *src) {
@@ -687,6 +734,7 @@ void THDTensor_(unfold)(THDTensor *self, THDTensor *src,
 
 void THDTensor_(squeeze)(THDTensor *self, THDTensor *src) {
   int ndim = 0;
+<<<<<<< HEAD
 
   if (!src)
     src = self;
@@ -814,60 +862,152 @@ void THDTensor_(free)(THDTensor *tensor) {
     );
   }
 }
+=======
+>>>>>>> master
 
-void THDTensor_(gather)(THDTensor *self, THDTensor *src, int dim, THDLongTensor *index) {
-  THArgCheck(dim < self->nDimension, 2, "Index dimension is out of bounds");
-  THArgCheck(THDLongTensor_nDimension(index) == self->nDimension, 3,
-             "Index tensor must have same dimensions as output tensor");
-  THArgCheck(src->nDimension == self->nDimension, 4,
-             "Input tensor must have same dimensions as output tensor");
+  if (!src)
+    src = self;
 
+  THDTensor_(set)(self, src);
+
+  for (std::size_t d = 0; d < src->nDimension; d++) {
+    if (src->size[d] != 1) {
+      if (d != ndim) {
+        self->size[ndim] = src->size[d];
+        self->stride[ndim] = src->stride[d];
+      }
+      ndim++;
+    }
+  }
+
+  /* right now, we do not handle 0-dimension tensors */
+  if (ndim == 0 && src->nDimension > 0) {
+    self->size[0] = 1;
+    self->stride[0] = 1;
+    ndim = 1;
+  }
+  self->nDimension = ndim;
   masterCommandChannel->sendMessage(
-    packMessage(
-      Functions::tensorGather,
-      self,
-      src,
-      dim,
-      index
-    ),
-    THDState::s_current_worker
+      packMessage(Functions::tensorSqueeze, self, src),
+      THDState::s_current_worker
   );
 }
 
-void THDTensor_(scatter)(THDTensor *self, int dim, THDLongTensor *index, THDTensor *src) {
-  THArgCheck(dim < self->nDimension, 2, "Index dimension is out of bounds");
-  THArgCheck(THDLongTensor_nDimension(index) == self->nDimension, 3,
-             "Index tensor must have same dimensions as output tensor");
-  THArgCheck(src->nDimension == self->nDimension, 4,
-             "Input tensor must have same dimensions as output tensor");
-
+void THDTensor_(squeeze1d)(THDTensor *self, THDTensor *src, int dimension) {
+  THDTensor_(_squeeze1d)(self, src, dimension);
   masterCommandChannel->sendMessage(
-    packMessage(
-      Functions::tensorScatter,
-      self,
-      dim,
-      index,
-      src
-    ),
-    THDState::s_current_worker
+      packMessage(Functions::tensorSqueeze1d, self, src),
+      THDState::s_current_worker
   );
 }
 
-void THDTensor_(scatterFill)(THDTensor *self, int dim, THDLongTensor *index, real val) {
-  THArgCheck(dim < self->nDimension, 2, "Index dimension is out of bounds");
-  THArgCheck(THDLongTensor_nDimension(index) == self->nDimension, 3,
-             "Index tensor must have same dimensions as output tensor");
+void THDTensor_(unsqueeze1d)(THDTensor *self, THDTensor *src, int dimension)
+{
+  int d;
 
-  masterCommandChannel->sendMessage(
-    packMessage(
-      Functions::tensorScatterFill,
-      self,
-      dim,
-      index,
-      val
-    ),
-    THDState::s_current_worker
-  );
+  if(!src)
+    src = self;
+
+  THArgCheck((dimension >= 0) && (dimension <= src->nDimension), 3, "dimension out of range");
+  THArgCheck(src->nDimension > 0, 3, "cannot unsqueeze empty tensor");
+
+  THDTensor_(set)(self, src);
+
+  self->size = (long*)THRealloc(self->size, sizeof(long)*(self->nDimension+1));
+  self->stride = (long*)THRealloc(self->stride, sizeof(long)*(self->nDimension+1));
+  self->nDimension++;
+  for (d = self->nDimension-1; d > dimension; d--) {
+    self->size[d] = self->size[d-1];
+    self->stride[d] = self->stride[d-1];
+  }
+  if (dimension+1 < self->nDimension) {
+    self->stride[dimension] = self->size[dimension+1] * self->stride[dimension+1];
+  } else {
+    self->stride[dimension] = 1;
+  }
+  self->size[dimension] = 1;
+}
+
+int THDTensor_(isContiguous)(const THDTensor *self) {
+  long z = 1;
+  for (std::ptrdiff_t d = self->nDimension - 1; d >= 0; d--) {
+    if (self->size[d] != 1) {
+      if (self->stride[d] == z)
+        z *= self->size[d];
+      else
+        return 0;
+    }
+  }
+  return 1;
+}
+
+int THDTensor_(isSameSizeAs)(const THDTensor *self, const THDTensor *src) {
+  if (self->nDimension != src->nDimension)
+    return 0;
+  for (std::size_t d = 0; d < self->nDimension; d++)
+    if (self->size[d] != src->size[d])
+      return 0;
+  return 1;
+}
+
+int THDTensor_(isSetTo)(const THDTensor *self, const THDTensor *src) {
+  if (!self->storage)
+    return 0;
+  if (self->storage == src->storage &&
+      self->storageOffset == src->storageOffset &&
+      self->nDimension == src->nDimension) {
+    for (std::size_t d = 0; d < self->nDimension; d++) {
+      if (self->size[d] != src->size[d] || self->stride[d] != src->stride[d])
+        return 0;
+    }
+    return 1;
+  }
+  return 0;
+}
+
+int THDTensor_(isSize)(const THDTensor *self, const THLongStorage *dims) {
+  if (self->nDimension != dims->size)
+    return 0;
+  for (std::size_t d = 0; d < self->nDimension; d++)
+    if (self->size[d] != dims->data[d])
+      return 0;
+  return 1;
+}
+
+ptrdiff_t THDTensor_(nElement)(const THDTensor *self) {
+  if (self->nDimension == 0) {
+    return 0;
+  } else {
+    ptrdiff_t nElement = 1;
+    for (std::size_t d = 0; d < self->nDimension; d++) {
+      nElement *= self->size[d];
+    }
+    return nElement;
+  }
+}
+
+void THDTensor_(retain)(THDTensor *tensor) {
+  if (tensor->flag & TH_TENSOR_REFCOUNTED)
+    THAtomicIncrementRef(&tensor->refcount);
+}
+
+void THDTensor_(free)(THDTensor *tensor) {
+  if (!tensor)
+    return;
+
+  // TODO: check refcounted flag?
+  if (THAtomicDecrementRef(&tensor->refcount)) {
+    delete[] tensor->size;
+    delete[] tensor->stride;
+    masterCommandChannel->sendMessage(
+        packMessage(
+          Functions::tensorFree,
+          tensor
+          ),
+        THDState::s_current_worker
+    );
+    THDStorage_(free)(tensor->storage);
+  }
 }
 
 accreal THDTensor_(dot)(THDTensor *self, THDTensor *src) {
@@ -897,6 +1037,19 @@ real THDTensor_(maxall)(THDTensor *self) {
   return receiveValueFromWorker<real>(THDState::s_current_worker);
 }
 
+real THDTensor_(medianall)(THDTensor *self) {
+  masterCommandChannel->sendMessage(
+    packMessage(Functions::tensorMedianall, self),
+    THDState::s_current_worker
+  );
+
+<<<<<<< HEAD
+  return receiveValueFromWorker<accreal>(THDState::s_current_worker);
+=======
+  return receiveValueFromWorker<real>(THDState::s_current_worker);
+>>>>>>> master
+}
+
 accreal THDTensor_(sumall)(THDTensor *self) {
   masterCommandChannel->sendMessage(
     packMessage(Functions::tensorSumall, self),
@@ -904,6 +1057,8 @@ accreal THDTensor_(sumall)(THDTensor *self) {
   );
 
   return receiveValueFromWorker<accreal>(THDState::s_current_worker);
+<<<<<<< HEAD
+=======
 }
 
 accreal THDTensor_(prodall)(THDTensor *self) {
@@ -913,6 +1068,7 @@ accreal THDTensor_(prodall)(THDTensor *self) {
   );
 
   return receiveValueFromWorker<accreal>(THDState::s_current_worker);
+>>>>>>> master
 }
 
 void THDTensor_(add)(THDTensor *self, THDTensor *src, real value) {
@@ -1189,79 +1345,7 @@ void THDTensor_(match)(THDTensor *self, THDTensor *m1, THDTensor *m2, real gain)
   );
 }
 
-void THDTensor_(max)(THDTensor *self, THDLongTensor *indices_, THDTensor *src, int dimension) {
-  THArgCheck(dimension >= 0 && dimension < src->nDimension, 2, "dimension %d out of range",
-      dimension + TH_INDEX_BASE);
-
-  THLongStorage *dim = THDTensor_(newSizeOf)(src);
-  THLongStorage_set(dim, dimension, 1);
-  THDTensor_(resize)(self, dim, NULL);
-  THDLongTensor_resize(indices_, dim, NULL);
-  THLongStorage_free(dim);
-
-  masterCommandChannel->sendMessage(
-    packMessage(Functions::tensorMax, self, indices_, src, dimension),
-    THDState::s_current_worker
-  );
-}
-
-void THDTensor_(min)(THDTensor *self, THDLongTensor *indices_, THDTensor *src, int dimension) {
-  THArgCheck(dimension >= 0 && dimension < src->nDimension, 2, "dimension %d out of range",
-      dimension + TH_INDEX_BASE);
-
-  THLongStorage *dim = THDTensor_(newSizeOf)(src);
-  THLongStorage_set(dim, dimension, 1);
-  THDTensor_(resize)(self, dim, NULL);
-  THDLongTensor_resize(indices_, dim, NULL);
-  THLongStorage_free(dim);
-
-  masterCommandChannel->sendMessage(
-    packMessage(Functions::tensorMin, self, indices_, src, dimension),
-    THDState::s_current_worker
-  );
-}
-
-void THDTensor_(kthvalue)(THDTensor *self, THDLongTensor *indices_, THDTensor *src, long k, int dimension) {
-  THArgCheck(dimension >= 0 && dimension < src->nDimension, 3, "dimension out of range");
-  THArgCheck(k > 0 && k <= src->size[dimension], 2, "selected index out of range");
-
-  THLongStorage *dim = THDTensor_(newSizeOf)(src);
-  THLongStorage_set(dim, dimension, 1);
-  THDTensor_(resize)(self, dim, NULL);
-  THDLongTensor_resize(indices_, dim, NULL);
-  THLongStorage_free(dim);
-
-  masterCommandChannel->sendMessage(
-    packMessage(Functions::tensorKthvalue, self, indices_, src, k, dimension),
-    THDState::s_current_worker
-  );
-}
-
-void THDTensor_(mode)(THDTensor *self, THDLongTensor *indices_, THDTensor *src, int dimension) {
-  THArgCheck(dimension >= 0 && dimension < src->nDimension, 3, "dimension out of range");
-
-  THLongStorage *dim = THDTensor_(newSizeOf)(src);
-  THLongStorage_set(dim, dimension, 1);
-  THDTensor_(resize)(self, dim, NULL);
-  THDLongTensor_resize(indices_, dim, NULL);
-  THLongStorage_free(dim);
-
-  masterCommandChannel->sendMessage(
-    packMessage(Functions::tensorMode, self, indices_, src, dimension),
-    THDState::s_current_worker
-  );
-}
-
-void THDTensor_(median)(THDTensor *self, THDLongTensor *indices_, THDTensor *src, int dimension) {
-  THArgCheck(dimension >= 0 && dimension < src->nDimension, 3, "dimension out of range");
-
-  long t_size_dim = src->size[dimension];
-  long k = (t_size_dim - 1) >> 1; /* take middle or one-before-middle element */
-
-  THDTensor_(kthvalue)(self, indices_, src, k + 1, dimension);
-}
-
-void THDTensor_(sum)(THDTensor *self, THDTensor *src, int dimension) {
+void THDTensor_(sum)(THDTensor *self, THDTensor *src, int dimension, int keepdim) {
   THArgCheck(dimension >= 0 && dimension < src->nDimension, 2, "dimension %d out of range",
       dimension + TH_INDEX_BASE);
 
@@ -1271,12 +1355,16 @@ void THDTensor_(sum)(THDTensor *self, THDTensor *src, int dimension) {
   THLongStorage_free(dim);
 
   masterCommandChannel->sendMessage(
-    packMessage(Functions::tensorSum, self, src, dimension),
+    packMessage(Functions::tensorSum, self, src, dimension, keepdim),
     THDState::s_current_worker
   );
+
+  if (!keepdim) {
+    THDTensor_(_squeeze1d)(self, self, dimension);
+  }
 }
 
-void THDTensor_(prod)(THDTensor *self, THDTensor *src, int dimension) {
+void THDTensor_(prod)(THDTensor *self, THDTensor *src, int dimension, int keepdim) {
   THArgCheck(dimension >= 0 && dimension < src->nDimension, 2, "dimension %d out of range",
       dimension + TH_INDEX_BASE);
 
@@ -1286,9 +1374,13 @@ void THDTensor_(prod)(THDTensor *self, THDTensor *src, int dimension) {
   THLongStorage_free(dim);
 
   masterCommandChannel->sendMessage(
-    packMessage(Functions::tensorProd, self, src, dimension),
+    packMessage(Functions::tensorProd, self, src, dimension, keepdim),
     THDState::s_current_worker
   );
+
+  if (!keepdim) {
+    THDTensor_(_squeeze1d)(self, self, dimension);
+  }
 }
 
 void THDTensor_(cumsum)(THDTensor *self, THDTensor *src, int dimension) {

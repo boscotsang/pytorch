@@ -4,12 +4,14 @@
 #include <memory>
 #include <vector>
 #include <THPP/THPP.h>
+#include <ATen/ATen.h>
 
 namespace torch {
 
 struct TupleParser {
   TupleParser(PyObject* args, int num_args=-1);
 
+<<<<<<< HEAD
   void parse(bool& x);
   void parse(int& x);
   void parse(double& x);
@@ -17,9 +19,19 @@ struct TupleParser {
   void parse(std::shared_ptr<thpp::Tensor>& x);
   void parse(std::vector<int>& x);
   void parse(std::string& x);
+=======
+  void parse(bool& x, const std::string& param_name);
+  void parse(int& x, const std::string& param_name);
+  void parse(double& x, const std::string& param_name);
+  void parse(std::unique_ptr<thpp::Tensor>& x, const std::string& param_name);
+  void parse(std::shared_ptr<thpp::Tensor>& x, const std::string& param_name);
+  void parse(at::Tensor& x, const std::string& param_name);
+  void parse(std::vector<int>& x, const std::string& param_name);
+  void parse(std::string& x, const std::string& param_name);
+>>>>>>> master
 
 protected:
-  std::runtime_error invalid_type(const char* expected);
+  std::runtime_error invalid_type(const std::string& expected, const std::string& param_name);
   PyObject* next_arg();
 
 private:

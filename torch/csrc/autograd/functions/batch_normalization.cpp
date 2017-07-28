@@ -1,10 +1,15 @@
 #include "batch_normalization.h"
 
+#include "torch/csrc/autograd/python_function.h"
+#include "torch/csrc/autograd/python_variable.h"
 #include "torch/csrc/autograd/variable.h"
 #include "torch/csrc/autograd/functions/utils.h"
 #include "torch/csrc/autograd/functions/basic_ops.h"
 #include "torch/csrc/nn/THNN_generic.h"
+#include "torch/csrc/utils/auto_gil.h"
 #include "torch/csrc/utils/auto_gpu.h"
+#include "torch/csrc/Exceptions.h"
+#include <sstream>
 
 #ifdef WITH_CUDNN
 #include "torch/csrc/cudnn/BatchNorm.h"
@@ -13,17 +18,41 @@
 extern THCState* state;
 #endif
 
+namespace {
+    void check_dims_match_num_input_features(const std::string& arg_name, long expected, long actual){
+      if (actual != expected){
+        std::stringstream ss;
+        ss << arg_name << " should contain " << expected << " elements not " << actual ;
+        throw std::runtime_error(ss.str());
+      }
+    }
+}
+
 namespace torch { namespace autograd {
 
 using thpp::Tensor;
 
-auto BatchNormForward::apply(const variable_list& inputs) -> variable_list {
-  if (inputs.size() != 3) throw std::runtime_error("expected three inputs");
+#ifndef CUDNN_BN_MIN_EPSILON
+#define CUDNN_BN_MIN_EPSILON 0
+#endif
 
+auto BatchNormForward::apply(const variable_list& inputs) -> variable_list {
+  check_input_variables("BatchNorm", inputs, 3, 1);
+  
   auto& input = inputs[0];
   auto& weight = inputs[1];
   auto& bias = inputs[2];
   AutoGPU guard(input->data->getDevice());
+   
+  auto num_features = input->data->rawSizes()[1];
+  check_dims_match_num_input_features("running_mean", num_features, running_mean->numel());
+  check_dims_match_num_input_features("running_var", num_features, running_var->numel());
+  if (weight){
+    check_dims_match_num_input_features("weight", num_features, weight->data->numel());
+  }
+  if (bias){
+    check_dims_match_num_input_features("bias", num_features, bias->data->numel());
+  }
 
   bool use_cudnn = false;
 #ifdef WITH_CUDNN
@@ -41,7 +70,7 @@ auto BatchNormForward::apply(const variable_list& inputs) -> variable_list {
   std::unique_ptr<Tensor> save_std(output->newTensor());
   save_std->resizeAs(*running_var);
 
-  if (use_cudnn) {
+  if (use_cudnn && eps >= CUDNN_BN_MIN_EPSILON) {
 #ifdef WITH_CUDNN
     torch::cudnn::cudnn_batch_norm_forward(
         state,
@@ -85,9 +114,15 @@ auto BatchNormForward::apply(const variable_list& inputs) -> variable_list {
 };
 
 auto BatchNormBackward::apply(const variable_list& grad_outputs) -> variable_list {
-  auto input = this->input.unpack_data();
-  auto weight = this->weight.unpack_data();
-  auto bias = this->bias.unpack_data();
+  check_input_variables("BatchNormBackward", grad_outputs, 1);
+  auto input_var = this->input.unpack();
+  auto weight_var = this->weight.unpack();
+  auto bias_var = this->bias.unpack();
+
+  std::unique_ptr<thpp::Tensor> input {input_var->data->clone_shallow()};
+  std::unique_ptr<thpp::Tensor> weight {weight_var ? weight_var->data->clone_shallow() : nullptr};
+  std::unique_ptr<thpp::Tensor> bias {bias_var ? bias_var->data->clone_shallow() : nullptr};
+
   AutoGPU guard(input->getDevice());
 
   bool use_cudnn = false;
@@ -122,14 +157,16 @@ auto BatchNormBackward::apply(const variable_list& grad_outputs) -> variable_lis
     }
   }
 
-  if (use_cudnn) {
+  auto grad_output = grad_outputs[0]->data->contiguous();
+
+  if (use_cudnn && eps >= CUDNN_BN_MIN_EPSILON) {
 #ifdef WITH_CUDNN
     torch::cudnn::cudnn_batch_norm_backward(
         state,
         torch::cudnn::getCudnnHandle(),
         torch::cudnn::getCudnnDataType(*input),
         (THVoidTensor*)input->cdata(),
-        (THVoidTensor*)grad_outputs[0]->data->cdata(),
+        (THVoidTensor*)grad_output->cdata(),
         (THVoidTensor*)grad_input->cdata(),
         (THVoidTensor*)grad_weight->cdata(),
         (THVoidTensor*)grad_bias->cdata(),
@@ -142,7 +179,6 @@ auto BatchNormBackward::apply(const variable_list& grad_outputs) -> variable_lis
         eps);
 #endif
   } else {
-    auto grad_output = grad_outputs[0]->data->contiguous();
     torch::nn::BatchNormalization_backward(
         input.get(),
         grad_output.get(),
@@ -159,12 +195,21 @@ auto BatchNormBackward::apply(const variable_list& grad_outputs) -> variable_lis
         eps);
   }
 
+  // Add saved variables used out of the pure autograd to inputs
+  variable_list all_inputs(grad_outputs);
+  all_inputs.push_back(input_var);
+  if (weight.get()) {
+    all_inputs.push_back(weight_var);
+  }
   auto outputs =  as_tensor_list(std::move(grad_input),
                                  std::move(grad_weight),
                                  std::move(grad_bias));
-  return wrap_outputs(grad_outputs, std::move(outputs), [&](FunctionFlags f) {
-    return std::make_shared<Error>("BatchNormBackward is not differentiable", std::move(f));
-  });
+  return wrap_outputs(all_inputs, std::move(outputs), [&](FunctionFlags f) {
+    return std::make_shared<BatchNormBackwardBackward>(
+      f, *this, std::move(save_mean), std::move(save_std),
+      input_var->save(this), Variable::save_opt(weight_var.get(), this),
+      grad_outputs[0]->save(this));
+    });
 };
 
 auto BatchNormBackward::releaseVariables() -> void {
@@ -172,5 +217,55 @@ auto BatchNormBackward::releaseVariables() -> void {
   weight.data.reset();
   bias.data.reset();
 }
+
+std::shared_ptr<torch::autograd::Variable> getReturnTupleVar(PyObject *p, Py_ssize_t pos) {
+  PyObject *item = PyTuple_GET_ITEM(p, pos);
+  return item == Py_None ? nullptr : ((THPVariable*)item)->cdata;
+}
+
+auto BatchNormBackwardBackward::apply(const variable_list& grad_grad_inputs) -> variable_list {
+  check_input_variables("BatchNormBackwardBackward", grad_grad_inputs, 3, 0);
+  auto ggI = grad_grad_inputs[0];
+  auto ggW = grad_grad_inputs[1];
+  auto ggb = grad_grad_inputs[2];
+
+  auto gO = grad_output.unpack();
+  auto input_var = input.unpack();
+  auto weight_var = weight.unpack();
+
+  AutoGIL gil;
+  THPObjectPtr input_pvar(THPVariable_Wrap(input_var));
+  THPObjectPtr weight_pvar(weight_var ? THPVariable_Wrap(weight_var) : Py_None);
+  THPObjectPtr ggi_pvar(ggI ? THPVariable_Wrap(ggI) : Py_None);
+  THPObjectPtr ggW_pvar(ggW ? THPVariable_Wrap(ggW) : Py_None);
+  THPObjectPtr ggb_pvar(ggb ? THPVariable_Wrap(ggb) : Py_None);
+  THPObjectPtr gO_pvar(THPVariable_Wrap(gO));
+  THPObjectPtr eps_py(PyFloat_FromDouble(eps));
+  PyObject* args = PyTuple_Pack(7, input_pvar.get(), weight_pvar.get(),
+                                ggi_pvar.get(), ggW_pvar.get(), ggb_pvar.get(),
+                                gO_pvar.get(), eps_py.get());
+  THPObjectPtr r(PyObject_CallObject(THPBatchNormBackwardBackwardFunction, args));
+  if (!r) throw python_error();
+  if (!PyTuple_Check(r.get())) {
+    throw std::runtime_error("expected PyTuple return from BatchNormBackwardBackward");
+  }
+
+  auto gI_var = getReturnTupleVar(r, 0);
+  auto gG_var = getReturnTupleVar(r, 1);
+  auto ggO_var = getReturnTupleVar(r, 2);
+
+  if (weight_var) {
+    return {ggO_var, gI_var, gG_var};
+  } else {
+    return {ggO_var, gI_var};
+  }
+};
+
+auto BatchNormBackwardBackward::releaseVariables() -> void {
+  input.data.reset();
+  weight.data.reset();
+  grad_output.data.reset();
+}
+
 
 }} // namespace torch::autograd

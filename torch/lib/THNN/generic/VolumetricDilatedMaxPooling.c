@@ -382,9 +382,15 @@ static void THNN_(VolumetricDilatedMaxPooling_updateGradInput_frame)(
         {
           /* retrieve position of max */
           THIndex_t * indzp = &indz_p_k[ti * oheight * owidth + i * owidth + j];
+<<<<<<< HEAD
           int64_t maxti = ((unsigned char*)(indzp))[0] * dilationT + ti * dT - pT;
           int64_t maxi  = ((unsigned char*)(indzp))[1] * dilationH + i * dH - pH;
           int64_t maxj  = ((unsigned char*)(indzp))[2] * dilationW + j * dW - pW;
+=======
+          long maxti = ((unsigned char*)(indzp))[0] * dilationT + ti * dT - pT;
+          long maxi  = ((unsigned char*)(indzp))[1] * dilationH + i * dH - pH;
+          long maxj  = ((unsigned char*)(indzp))[2] * dilationW + j * dW - pW;
+>>>>>>> master
 
 	  if (maxti != -1) {
 	    /* update gradient */

@@ -5,6 +5,7 @@
 #include <sys/poll.h>
 #include <atomic>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <thread>
 #include <tuple>
@@ -13,7 +14,7 @@
 namespace thd {
 
 struct MasterCommandChannel {
-  MasterCommandChannel();
+  MasterCommandChannel(InitMethod::Config config);
   ~MasterCommandChannel();
 
   bool init();
@@ -23,6 +24,7 @@ struct MasterCommandChannel {
 private:
   std::tuple<rank_type, std::string> recvError();
   void errorHandler();
+<<<<<<< HEAD
 
   rank_type _rank;
   std::vector<int> _sockets;
@@ -37,6 +39,21 @@ private:
 
 struct WorkerCommandChannel {
   WorkerCommandChannel();
+=======
+
+  rank_type _rank;
+  std::vector<int> _sockets;
+  std::unique_ptr<struct pollfd[]> _poll_events;
+
+  int _error_pipe; // informs error handler thread that we are exiting
+  std::unique_ptr<std::string> _error;
+  std::thread _error_thread;
+  std::vector<std::mutex> _mutexes;
+};
+
+struct WorkerCommandChannel {
+  WorkerCommandChannel(InitMethod::Config config);
+>>>>>>> master
   ~WorkerCommandChannel();
 
   bool init();

@@ -42,10 +42,19 @@ public:
   virtual THCTensor* clone() const override;
   virtual THCTensor* clone_shallow() override;
   virtual std::unique_ptr<Tensor> contiguous() const override;
+<<<<<<< HEAD
   virtual THCTensor* newSelect(int dimension, int64_t sliceIndex) const override;
   virtual THCTensor* newNarrow(int dimension, int64_t firstIndex, int64_t size) const override;
   virtual THCTensor* newTranspose(int dimension1, int dimension2) const override;
   virtual THCTensor* newUnfold(int dimension, int64_t size, int64_t step) const override;
+=======
+  virtual THCTensor* newSelect(int dimension, long sliceIndex) const override;
+  virtual THCTensor* newNarrow(int dimension, long firstIndex, long size) const override;
+  virtual THCTensor* newTranspose(int dimension1, int dimension2) const override;
+  virtual THCTensor* newUnfold(int dimension, long size, long step) const override;
+  virtual THCTensor* newExpand(const long_range& size) const override;
+  virtual THCTensor* newView(const long_range& size) const override;
+>>>>>>> master
 
   virtual int nDim() const override;
   virtual long_range sizes() const override;
@@ -85,7 +94,11 @@ public:
   virtual THCTensor& transpose(const Tensor& src, int dimension1,
                                int dimension2) override;
   virtual THCTensor& unfold(const Tensor& src, int dimension,
+<<<<<<< HEAD
                            int64_t size, int64_t step) override;
+=======
+                           long size, long step) override;
+>>>>>>> master
   virtual THCTensor& squeeze(const Tensor& src) override;
   virtual THCTensor& squeeze(const Tensor& src, int dimension) override;
   virtual THCTensor& unsqueeze(const Tensor& src, int dimension) override;
@@ -117,7 +130,11 @@ public:
   virtual THCTensor& eye(int64_t n, int64_t m) override;
   virtual THCTensor& range(scalar_type xmin, scalar_type xmax,
                           scalar_type step) override;
+<<<<<<< HEAD
   virtual THCTensor& randperm(const Generator& _generator, int64_t n) override;
+=======
+  virtual THCTensor& randperm(const Generator& _generator, long n) override;
+>>>>>>> master
   virtual THCTensor& sort(const Tensor& ri, const Tensor& src,
                        int dimension, int desc) override;
   virtual THCTensor& topk(const Tensor& ri, const Tensor& src,
@@ -173,6 +190,7 @@ public:
   virtual THCTensor& trunc(const Tensor& src) override;
   virtual THCTensor& frac(const Tensor& src) override;
   virtual THCTensor& lerp(const Tensor& a, const Tensor& b, scalar_type weight) override;
+<<<<<<< HEAD
   virtual THCTensor& mean(const Tensor& src, int dimension) override;
   virtual THCTensor& std(const Tensor& src, int dimension, int flag) override;
   virtual THCTensor& var(const Tensor& src, int dimension, int flag) override;
@@ -187,6 +205,22 @@ public:
   virtual scalar_type normall(scalar_type value) override;
   virtual THCTensor& linspace(scalar_type a, scalar_type b, int64_t n) override;
   virtual THCTensor& logspace(scalar_type a, scalar_type b, int64_t n) override;
+=======
+  virtual THCTensor& mean(const Tensor& src, int dimension, int keepdim) override;
+  virtual THCTensor& std(const Tensor& src, int dimension, int biased, int keepdim) override;
+  virtual THCTensor& var(const Tensor& src, int dimension, int biased, int keepdim) override;
+  virtual THCTensor& norm(const Tensor& src, scalar_type value, int dimension, int keepdim) override;
+  virtual THCTensor& renorm(const Tensor& src, scalar_type value, int dimension, scalar_type maxnorm) override;
+  virtual THCTensor& histc(const Tensor& src, long nbins, scalar_type minvalue, scalar_type maxvalue) override;
+  virtual THCTensor& bhistc(const Tensor& src, long nbins, scalar_type minvalue, scalar_type maxvalue) override;
+  virtual scalar_type dist(const Tensor& src, scalar_type value) override;
+  virtual scalar_type meanall() override;
+  virtual scalar_type varall(int biased) override;
+  virtual scalar_type stdall(int biased) override;
+  virtual scalar_type normall(scalar_type value) override;
+  virtual THCTensor& linspace(scalar_type a, scalar_type b, long n) override;
+  virtual THCTensor& logspace(scalar_type a, scalar_type b, long n) override;
+>>>>>>> master
   virtual THCTensor& rand(const Generator& _generator, THLongStorage *size) override;
   virtual THCTensor& randn(const Generator& _generator, THLongStorage *size) override;
   virtual int logicalall() override;
@@ -248,6 +282,7 @@ public:
   virtual scalar_type dot(const Tensor& source) override;
   virtual scalar_type minall() override;
   virtual scalar_type maxall() override;
+  virtual scalar_type medianall() override;
   virtual scalar_type sumall() override;
   virtual scalar_type prodall() override;
   virtual THCTensor& neg(const Tensor& src) override;
@@ -292,17 +327,21 @@ public:
   virtual THCTensor& match(const Tensor& m1, const Tensor& m2,
                           scalar_type gain) override;
   virtual THCTensor& max(const Tensor& indices_, const Tensor& src,
-                        int dimension) override;
+                        int dimension, int keepdim) override;
   virtual THCTensor& min(const Tensor& indices_, const Tensor& src,
-                        int dimension) override;
+                        int dimension, int keepdim) override;
   virtual THCTensor& kthvalue(const Tensor& indices_, const Tensor& src,
+<<<<<<< HEAD
                              int64_t k, int dimension) override;
+=======
+                             long k, int dimension, int keepdim) override;
+>>>>>>> master
   virtual THCTensor& mode(const Tensor& indices_, const Tensor& src,
-                         int dimension) override;
+                         int dimension, int keepdim) override;
   virtual THCTensor& median(const Tensor& indices_, const Tensor& src,
-                           int dimension) override;
-  virtual THCTensor& sum(const Tensor& src, int dimension) override;
-  virtual THCTensor& prod(const Tensor& src, int dimension) override;
+                           int dimension, int keepdim) override;
+  virtual THCTensor& sum(const Tensor& src, int dimension, int keepdim) override;
+  virtual THCTensor& prod(const Tensor& src, int dimension, int keepdim) override;
   virtual THCTensor& cumsum(const Tensor& src, int dimension) override;
   virtual THCTensor& cumprod(const Tensor& src, int dimension) override;
   virtual THCTensor& sign(const Tensor& source) override;

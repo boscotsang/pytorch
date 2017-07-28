@@ -1,16 +1,22 @@
 #pragma once
 
 // Function is an abstract class that represents a single operation from one or
-// more variables to one more or varaibles.
+// more variables to one more or variables.
 //
 // Subclasses may represent "forward" or "backward" operations (i.e functions
 // and their derivatives). Some functions may be used as both.
 
-#include <memory>
-#include <THPP/THPP.h>
-#include <vector>
-
+#include <Python.h>
 #include "torch/csrc/autograd/function_hook.h"
+
+#include <THPP/THPP.h>
+
+<<<<<<< HEAD
+#include "torch/csrc/autograd/function_hook.h"
+=======
+#include <memory>
+#include <vector>
+>>>>>>> master
 
 namespace torch { namespace autograd {
 
@@ -23,8 +29,20 @@ using function_list = std::vector<std::pair<std::shared_ptr<Function>, int>>;
 
 // State used to create "backward" functions
 struct FunctionFlags {
+<<<<<<< HEAD
   bool is_executable = false;
   bool is_volatile = false;
+=======
+  // Roughly speaking, is_executable corresponds to requires_grad.
+  // See http://pytorch.org/docs/notes/autograd.html for more details:
+  // both is_executable and is_volatile specify whether or not backwards
+  // gradient computation will be performed for a function, but they differ in
+  // their precedence.
+  bool is_executable = false;
+  bool is_volatile = false;
+  // What functions take the output of this function as input.
+  // There is one function per output of this function.
+>>>>>>> master
   function_list next_functions;
 };
 
@@ -36,6 +54,7 @@ struct Function {
     , is_stochastic(false)
     , pre_hooks()
     , post_hooks()
+    , pyobj(nullptr)
     {}
 
   Function(FunctionFlags&& flags)
@@ -45,6 +64,7 @@ struct Function {
     , is_stochastic(false)
     , pre_hooks()
     , post_hooks()
+    , pyobj(nullptr)
     {}
 
   Function(const Function& other) = delete;
@@ -80,6 +100,8 @@ struct Function {
   bool is_stochastic;
   std::vector<std::shared_ptr<FunctionPreHook>> pre_hooks;
   std::vector<std::shared_ptr<FunctionPostHook>> post_hooks;
+
+  PyObject *pyobj;  // weak reference
 };
 
 

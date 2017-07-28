@@ -1,5 +1,9 @@
 #include "../base/data_channels/DataChannelTCP.hpp"
+<<<<<<< HEAD
 #include "../base/ChannelEnvVars.hpp"
+=======
+#include "TestUtils.hpp"
+>>>>>>> master
 
 #include <THPP/tensors/THTensor.hpp>
 
@@ -18,10 +22,17 @@ std::mutex g_mutex;
 void master()
 {
   g_mutex.lock();
+<<<<<<< HEAD
   setenv(thd::WORLD_SIZE_ENV, std::to_string((WORKERS_NUM + 1)).data(), 1);
   setenv(thd::RANK_ENV, "0", 1);
   setenv(thd::MASTER_PORT_ENV, std::to_string(MASTER_PORT).data(), 1);
   auto masterChannel = std::make_shared<thd::DataChannelTCP>(); // reads all env variable
+=======
+  setenv(WORLD_SIZE_ENV, std::to_string((WORKERS_NUM + 1)).data(), 1);
+  setenv(RANK_ENV, "0", 1);
+  setenv(MASTER_PORT_ENV, std::to_string(MASTER_PORT).data(), 1);
+  auto masterChannel = std::make_shared<thd::DataChannelTCP>(thd::getInitConfig("env://")); // reads all env variable
+>>>>>>> master
   g_mutex.unlock();
 
   assert(masterChannel->init());
@@ -37,9 +48,15 @@ void master()
 void worker(int id)
 {
   g_mutex.lock();
+<<<<<<< HEAD
   setenv(thd::RANK_ENV, std::to_string(id).data(), 1);
   setenv(thd::MASTER_ADDR_ENV, std::string("127.0.0.1:" + std::to_string(MASTER_PORT)).data(), 1);
   auto workerChannel = std::make_shared<thd::DataChannelTCP>(); // reads all env variable
+=======
+  setenv(RANK_ENV, std::to_string(id).data(), 1);
+  setenv(MASTER_ADDR_ENV, std::string("127.0.0.1:" + std::to_string(MASTER_PORT)).data(), 1);
+  auto workerChannel = std::make_shared<thd::DataChannelTCP>(thd::getInitConfig("env://")); // reads all env variable
+>>>>>>> master
   g_mutex.unlock();
 
   assert(workerChannel->init());

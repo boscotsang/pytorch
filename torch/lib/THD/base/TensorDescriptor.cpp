@@ -1,4 +1,5 @@
 #include "TensorDescriptor.hpp"
+#include "Cuda.hpp"
 #include <THPP/tensors/THTensor.hpp>
 #ifdef WITH_CUDA
 #include <THPP/tensors/THCTensor.hpp>
@@ -40,6 +41,7 @@ THDTensorDescriptor* THDTensorDescriptor_newFromTHByteTensor(THByteTensor *tenso
 }
 
 #ifdef WITH_CUDA
+<<<<<<< HEAD
 extern THCState* state;
 
 THDTensorDescriptor* THDTensorDescriptor_newFromTHCudaDoubleTensor(THCudaDoubleTensor *tensor) {
@@ -75,6 +77,42 @@ THDTensorDescriptor* THDTensorDescriptor_newFromTHCudaCharTensor(THCudaCharTenso
 THDTensorDescriptor* THDTensorDescriptor_newFromTHCudaByteTensor(THCudaByteTensor *tensor) {
   THCudaByteTensor_retain(state, tensor);
   return new thpp::THCTensor<unsigned char>(state, tensor);
+=======
+
+THDTensorDescriptor* THDTensorDescriptor_newFromTHCudaDoubleTensor(THCudaDoubleTensor *tensor) {
+  THCudaDoubleTensor_retain(THDGetCudaState(), tensor);
+  return new thpp::THCTensor<double>(THDGetCudaState(), tensor);
+}
+
+THDTensorDescriptor* THDTensorDescriptor_newFromTHCudaFloatTensor(THCudaTensor *tensor) {
+  THCudaTensor_retain(THDGetCudaState(), tensor);
+  return new thpp::THCTensor<float>(THDGetCudaState(), tensor);
+}
+
+THDTensorDescriptor* THDTensorDescriptor_newFromTHCudaLongTensor(THCudaLongTensor *tensor) {
+  THCudaLongTensor_retain(THDGetCudaState(), tensor);
+  return new thpp::THCTensor<long>(THDGetCudaState(), tensor);
+}
+
+THDTensorDescriptor* THDTensorDescriptor_newFromTHCudaIntTensor(THCudaIntTensor *tensor) {
+  THCudaIntTensor_retain(THDGetCudaState(), tensor);
+  return new thpp::THCTensor<int>(THDGetCudaState(), tensor);
+}
+
+THDTensorDescriptor* THDTensorDescriptor_newFromTHCudaShortTensor(THCudaShortTensor *tensor) {
+  THCudaShortTensor_retain(THDGetCudaState(), tensor);
+  return new thpp::THCTensor<short>(THDGetCudaState(), tensor);
+}
+
+THDTensorDescriptor* THDTensorDescriptor_newFromTHCudaCharTensor(THCudaCharTensor *tensor) {
+  THCudaCharTensor_retain(THDGetCudaState(), tensor);
+  return new thpp::THCTensor<char>(THDGetCudaState(), tensor);
+}
+
+THDTensorDescriptor* THDTensorDescriptor_newFromTHCudaByteTensor(THCudaByteTensor *tensor) {
+  THCudaByteTensor_retain(THDGetCudaState(), tensor);
+  return new thpp::THCTensor<unsigned char>(THDGetCudaState(), tensor);
+>>>>>>> master
 }
 #endif
 

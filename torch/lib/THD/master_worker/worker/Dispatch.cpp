@@ -21,11 +21,13 @@ namespace worker {
 namespace detail {
 
 void sendValueToMaster(long long value) {
-  dataChannel->send(IntScalar(value), 0);
+  IntScalar scalar(value);
+  dataChannel->send(scalar, 0);
 }
 
 void sendValueToMaster(double value) {
-  dataChannel->send(FloatScalar(value), 0);
+  FloatScalar scalar(value);
+  dataChannel->send(scalar, 0);
 }
 
 thpp::Tensor* unpackRetrieveTensor(rpc::RPCMessage& message) {
@@ -49,6 +51,7 @@ static void finalize(rpc::RPCMessage& raw_message) {
 #include "dispatch/Generator.cpp"
 #include "dispatch/Storage.cpp"
 #include "dispatch/Tensor.cpp"
+#include "dispatch/TensorCopy.cpp"
 #include "dispatch/TensorMath.cpp"
 #include "dispatch/TensorRandom.cpp"
 #include "dispatch/TensorLapack.cpp"
@@ -56,7 +59,15 @@ static void finalize(rpc::RPCMessage& raw_message) {
 using dispatch_fn = void (*)(rpc::RPCMessage&);
 using Functions = thd::Functions;
 
+void exitWorker(rpc::RPCMessage& msg) {
+  finalize(msg);
+  ::exit(0);
+}
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> master
 static const std::unordered_map<rpc::function_id_type, dispatch_fn> functions {
     {Functions::generatorNew, generatorNew},
     {Functions::generatorFree, generatorFree},
@@ -64,6 +75,12 @@ static const std::unordered_map<rpc::function_id_type, dispatch_fn> functions {
     {Functions::generatorSeed, generatorSeed},
     {Functions::generatorManualSeed, generatorManualSeed},
 
+<<<<<<< HEAD
+=======
+    {Functions::tensorCopyFromMaster, tensorCopyFromMaster},
+    {Functions::tensorCopyFromWorker, tensorCopyFromWorker},
+    
+>>>>>>> master
     {Functions::tensorNew, tensorNew},
     {Functions::tensorNewWithSize, tensorNewWithSize},
     {Functions::tensorNewWithStorage, tensorNewWithStorage},
@@ -95,6 +112,7 @@ static const std::unordered_map<rpc::function_id_type, dispatch_fn> functions {
     {Functions::tensorDot, tensorDot},
     {Functions::tensorMinall, tensorMinall},
     {Functions::tensorMaxall, tensorMaxall},
+    {Functions::tensorMedianall, tensorMedianall},
     {Functions::tensorSumall, tensorSumall},
     {Functions::tensorProdall, tensorProdall},
     {Functions::tensorNeg, tensorNeg},
@@ -138,6 +156,10 @@ static const std::unordered_map<rpc::function_id_type, dispatch_fn> functions {
     {Functions::tensorCmaxValue, tensorCmaxValue},
     {Functions::tensorCminValue, tensorCminValue},
 
+<<<<<<< HEAD
+=======
+    {Functions::tensorFill, tensorFill},
+>>>>>>> master
     {Functions::tensorMaskedFill, tensorMaskedFill},
     {Functions::tensorMaskedCopy, tensorMaskedCopy},
     {Functions::tensorMaskedSelect, tensorMaskedSelect},
@@ -233,6 +255,7 @@ static const std::unordered_map<rpc::function_id_type, dispatch_fn> functions {
     {Functions::tensorCauchy, tensorCauchy},
     {Functions::tensorLogNormal, tensorLogNormal},
     {Functions::tensorMultinomial, tensorMultinomial},
+<<<<<<< HEAD
 
     {Functions::tensorGesv, tensorGesv},
     {Functions::tensorTrtrs, tensorTrtrs},
@@ -250,6 +273,25 @@ static const std::unordered_map<rpc::function_id_type, dispatch_fn> functions {
     {Functions::tensorOrmqr, tensorOrmqr},
     {Functions::tensorPstrf, tensorPstrf},
 
+=======
+
+    {Functions::tensorGesv, tensorGesv},
+    {Functions::tensorTrtrs, tensorTrtrs},
+    {Functions::tensorGels, tensorGels},
+    {Functions::tensorSyev, tensorSyev},
+    {Functions::tensorGeev, tensorGeev},
+    {Functions::tensorGesvd2, tensorGesvd2},
+    {Functions::tensorGetri, tensorGetri},
+    {Functions::tensorPotrf, tensorPotrf},
+    {Functions::tensorPotrs, tensorPotrs},
+    {Functions::tensorPotri, tensorPotri},
+    {Functions::tensorQr, tensorQr},
+    {Functions::tensorGeqrf, tensorGeqrf},
+    {Functions::tensorOrgqr, tensorOrgqr},
+    {Functions::tensorOrmqr, tensorOrmqr},
+    {Functions::tensorPstrf, tensorPstrf},
+
+>>>>>>> master
     {Functions::storageNew, storageNew},
     {Functions::storageNewWithSize, storageNewWithSize},
     {Functions::storageNewWithSize1, storageNewWithSize1},
@@ -262,6 +304,8 @@ static const std::unordered_map<rpc::function_id_type, dispatch_fn> functions {
 
     {Functions::sendTensor, sendTensor},
     {Functions::sendStorage, sendStorage},
+
+    {Functions::exit, exitWorker}
 };
 
 } // namespace detail

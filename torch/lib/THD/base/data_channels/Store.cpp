@@ -18,18 +18,31 @@ enum class QueryType : std::uint8_t {
 
 } // anonymous namespace
 
+<<<<<<< HEAD
 Store::StoreDeamon::StoreDeamon(port_type port, rank_type world_size)
  : _port(port)
  , _keys_awaited(world_size, 0)
  , _sockets(world_size, -1)
+=======
+Store::StoreDeamon::StoreDeamon(int listen_socket)
+ : _listen_socket(listen_socket)
+ , _keys_awaited()
+ , _sockets()
+>>>>>>> master
 {
   _deamon = std::thread(&Store::StoreDeamon::deamon, this);
 }
 
 Store::StoreDeamon::~StoreDeamon()
 {
+<<<<<<< HEAD
   for (auto socket : _sockets) {
     if (socket != -1) 
+=======
+  ::close(_listen_socket);
+  for (auto socket : _sockets) {
+    if (socket != -1)
+>>>>>>> master
       ::close(socket);
   }
 }
@@ -39,6 +52,7 @@ void Store::StoreDeamon::join() {
 }
 
 void Store::StoreDeamon::deamon() {
+<<<<<<< HEAD
   int socket;
 
   std::tie(socket, std::ignore) = listen(_port);
@@ -54,6 +68,10 @@ void Store::StoreDeamon::deamon() {
     fds[i].fd = _sockets[i];
     fds[i].events = POLLIN; // we only read
   }
+=======
+  std::vector<struct pollfd> fds;
+  fds.push_back({ .fd = _listen_socket, .events = POLLIN });
+>>>>>>> master
 
   // receive the queries
   bool finished = false;
@@ -62,6 +80,7 @@ void Store::StoreDeamon::deamon() {
       fds[i].revents = 0;
     }
 
+<<<<<<< HEAD
     SYSCHECK(::poll(fds, _sockets.size(), -1));
     for (std::size_t rank = 0; rank < _sockets.size(); rank++) {
       if (fds[rank].revents == 0)
@@ -70,6 +89,25 @@ void Store::StoreDeamon::deamon() {
       if (fds[rank].revents ^ POLLIN)
         throw std::system_error(ECONNABORTED, std::system_category());
       
+=======
+    SYSCHECK(::poll(fds.data(), fds.size(), -1));
+    if (fds[0].revents != 0) {
+      if (fds[0].revents ^ POLLIN)
+        throw std::system_error(ECONNABORTED, std::system_category());
+
+      int sock_fd = std::get<0>(accept(_listen_socket));
+      _sockets.push_back(sock_fd);
+      _keys_awaited.push_back(0);
+      fds.push_back({ .fd = sock_fd, .events = POLLIN });
+    }
+    for (std::size_t rank = 0; rank < _sockets.size(); rank++) {
+      if (fds[rank + 1].revents == 0)
+        continue;
+
+      if (fds[rank + 1].revents ^ POLLIN)
+        throw std::system_error(ECONNABORTED, std::system_category());
+
+>>>>>>> master
       try {
         query(rank);
       } catch (...) {
@@ -85,7 +123,11 @@ void Store::StoreDeamon::deamon() {
   }
 }
 
+<<<<<<< HEAD
 /* 
+=======
+/*
+>>>>>>> master
  * query communicates with the worker. The format
  * of the query is as follows:
  * type of query | size of arg1 | arg1 | size of arg2 | arg2 | ...
@@ -148,18 +190,30 @@ bool Store::StoreDeamon::checkAndUpdate(std::vector<std::string>& keys) const {
 
 
 
+<<<<<<< HEAD
 Store::Store(rank_type rank, const std::string& addr,
              port_type port, rank_type world_size)
  : _rank(rank)
  , _store_addr(addr)
+=======
+Store::Store(const std::string& addr,
+             port_type port, int listen_socket)
+ : _store_addr(addr)
+>>>>>>> master
  , _store_port(port)
  , _socket(-1)
  , _store_thread(nullptr)
 {
+<<<<<<< HEAD
   // Only one process (rank 0) starts a store
   if (_rank == 0) {
     _store_thread = std::unique_ptr<StoreDeamon>(
       new StoreDeamon(port, world_size)
+=======
+  if (listen_socket != Store::CLIENT_ONLY) {
+    _store_thread = std::unique_ptr<StoreDeamon>(
+      new StoreDeamon(listen_socket)
+>>>>>>> master
     );
   }
 
@@ -169,9 +223,14 @@ Store::Store(rank_type rank, const std::string& addr,
 Store::~Store() {
   ::close(_socket);
 
+<<<<<<< HEAD
   // The rank 0 process has to wait for deamon.
   // Store deamon should end because of closed connection.
   if (_rank == 0) {
+=======
+  // Store deamon should end because of closed connection.
+  if (_store_thread) {
+>>>>>>> master
     _store_thread->join();
   }
 }

@@ -1,5 +1,9 @@
 #include "CommandChannel.hpp"
+<<<<<<< HEAD
 #include "../../base/ChannelEnvVars.hpp"
+=======
+#include "Functions.hpp"
+>>>>>>> master
 #include "../../base/ChannelUtils.hpp"
 
 #include <unistd.h>
@@ -41,6 +45,7 @@ std::unique_ptr<rpc::RPCMessage> receiveMessage(int socket) {
 }
 
 } // anonymous namespace
+<<<<<<< HEAD
 
 MasterCommandChannel::MasterCommandChannel()
   : _rank(0)
@@ -73,6 +78,43 @@ MasterCommandChannel::~MasterCommandChannel() {
 bool MasterCommandChannel::init() {
   std::tie(_sockets[0], std::ignore) = listen(_port);
 
+=======
+
+MasterCommandChannel::MasterCommandChannel(InitMethod::Config config)
+  : _rank(0)
+  , _poll_events(nullptr)
+  , _error_pipe(-1)
+  , _error(nullptr)
+  , _sockets(config.world_size, -1)
+  , _mutexes(config.world_size)
+{
+  _sockets[0] = config.master.listen_socket;
+}
+
+MasterCommandChannel::~MasterCommandChannel() {
+  if (_error_thread.joinable()) {
+    if (::write(_error_pipe, "exit", 4) != 4) {
+      std::cerr << "Failed to notify error thread" << std::endl;
+    }
+    _error_thread.join();
+
+    ::close(_error_pipe);
+  }
+
+  auto world_size = _sockets.size();
+  for (std::size_t i = 0; i < world_size; ++i) {
+    auto socket = _sockets[i];
+    if (socket == -1) continue;
+    try {
+      sendMessage(rpc::packMessage(Functions::exit), i);
+    } catch(...) {}
+    ::close(socket);
+  }
+
+}
+
+bool MasterCommandChannel::init() {
+>>>>>>> master
   int socket;
   rank_type rank;
   for (std::size_t i = 1; i < _sockets.size(); ++i) {
@@ -123,6 +165,10 @@ void MasterCommandChannel::sendMessage(std::unique_ptr<rpc::RPCMessage> msg, int
     throw std::domain_error("sendMessage received invalid rank as parameter");
   }
 
+<<<<<<< HEAD
+=======
+  std::lock_guard<std::mutex> guard(_mutexes[rank]);
+>>>>>>> master
   ::thd::sendMessage(_sockets[rank], std::move(msg));
 }
 
@@ -174,12 +220,21 @@ std::tuple<rank_type, std::string> MasterCommandChannel::recvError() {
 }
 
 
+<<<<<<< HEAD
 WorkerCommandChannel::WorkerCommandChannel()
   : _socket(-1)
 {
   _rank = load_rank_env();
   std::tie(_master_addr, _master_port) = load_worker_env();
 }
+=======
+WorkerCommandChannel::WorkerCommandChannel(InitMethod::Config config)
+  : _rank(config.rank)
+  , _socket(-1)
+  , _master_addr(config.worker.master_addr)
+  , _master_port(config.worker.master_port)
+{}
+>>>>>>> master
 
 WorkerCommandChannel::~WorkerCommandChannel() {
   if (_socket != -1)

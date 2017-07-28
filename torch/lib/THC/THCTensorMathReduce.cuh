@@ -469,8 +469,8 @@ kernelTransformReduceOuterDimIndex(K *tgt1,
 
       for (unsigned col = 0; col < row_size; ++col) {
         // +1 for Lua index
-        acc = binary_op(thrust::make_pair<K, Index>(*src, col + TH_INDEX_BASE),
-                        acc);
+        acc = binary_op(acc,
+                        thrust::make_pair<K, Index>(*src, col + TH_INDEX_BASE));
         src += num_irows;
       }
 
@@ -550,7 +550,7 @@ kernelTransformReduceInnermostDimIndex(K *tgt1,
       K *src = src_ + row * row_size;
       // Sequential reduction within a thread.
       for (unsigned col = threadIdx.x; col < row_size; col += blockDim.x) {
-        acc = binary_op(thrust::make_pair<K, Index>(src[col], col + TH_INDEX_BASE), acc);
+        acc = binary_op(acc, thrust::make_pair<K, Index>(src[col], col + TH_INDEX_BASE));
       }
     }
 
@@ -624,7 +624,12 @@ THC_reduceDimIndex(THCState *state,
                    TensorTypeK *tgt1_,
                    TensorTypeIndex *tgt2_,
                    TensorTypeK *src,
+<<<<<<< HEAD
                    int64_t dimension,
+=======
+                   long dimension,
+                   int keepdim,
+>>>>>>> master
                    const thrust::pair<
                    typename TensorUtils<TensorTypeK>::DataType,
                    typename TensorUtils<TensorTypeIndex>::DataType>& init,
@@ -653,6 +658,10 @@ THC_reduceDimIndex(THCState *state,
   TensorUtils<TensorTypeK>::free(state, src);
   TensorUtils<TensorTypeK>::freeCopyTo(state, tgt1, tgt1_);
   TensorUtils<TensorTypeIndex>::freeCopyTo(state, tgt2, tgt2_);
+  if (!keepdim) {
+    TensorUtils<TensorTypeK>::squeeze1d(state, tgt1_, tgt1_, dimension);
+    TensorUtils<TensorTypeIndex>::squeeze1d(state, tgt2_, tgt2_, dimension);
+  }
 }
 
 template <typename T, typename Index>
@@ -675,14 +684,14 @@ struct MinValuePair {
 
 template <typename T>
 struct AddOp {
-  __device__ __forceinline__ T operator()(T &lhs, T &rhs) {
+  __device__ __forceinline__ T operator()(T const &lhs, T const &rhs) {
     return THCNumerics<T>::add(lhs, rhs);
   }
 };
 
 template <typename T>
 struct MulOp {
-  __device__ __forceinline__ T operator()(T &lhs, T &rhs) {
+  __device__ __forceinline__ T operator()(T const &lhs, T const &rhs) {
     return THCNumerics<T>::mul(lhs, rhs);
   }
 };

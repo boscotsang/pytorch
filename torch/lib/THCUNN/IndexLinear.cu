@@ -15,6 +15,7 @@ const int64_t NNZ_PER_BLOCK_MAX = 1024;
 #define clamp(a, low, high) max(min((a), (high)), (low))
 #endif
 
+<<<<<<< HEAD
 #ifndef ATOMIC_REAL_MINMAX
 #define ATOMIC_REAL_MINMAX(func)                                        \
     __device__  void atomic_##func(double *address, double val) {       \
@@ -41,6 +42,13 @@ const int64_t NNZ_PER_BLOCK_MAX = 1024;
 ATOMIC_REAL_MINMAX(max)
 ATOMIC_REAL_MINMAX(min)
 #endif
+=======
+__device__ double atomicExch(double *address, double val) {
+    unsigned long long int* address_as_ull = (unsigned long long int*)address;
+    unsigned long long res = atomicExch(address_as_ull, __double_as_longlong(val));
+    return __longlong_as_double(res);
+}
+>>>>>>> master
 
 template<typename Ty, bool train>
 __global__ static
@@ -113,14 +121,16 @@ void updateOutput(
             Ty *nWeightCurr = nWeight + nWeightOffset;
             if (train) {
                 Ty absVal = fabs(val);
-                Ty maxVal = nWeight[key * weightStride + 0];
+                Ty maxVal = nWeightCurr[0];
                 if (absVal > maxVal) {
                     // Updating maxVal and invMaxVal. Go hogwild!
-                    atomic_max(nWeightCurr + 0, absVal);
-                    atomic_min(nWeightCurr + 1, 1.0/absVal);
+                    Ty invAbsVal = 1.0 / absVal;
+                    atomicExch(nWeightCurr + 0, absVal);
+                    atomicExch(nWeightCurr + 1, invAbsVal);
                 }
-                val = val * nWeightCurr[1] + nWeightCurr[3];
+                val = clamp(val * nWeightCurr[1], -1.0, 1.0) + nWeightCurr[3];
                 normalizedValues[id + tid] = val;
+                nWeightCurr[2] = 1;
             } else {
                 val = clamp(val * nWeightCurr[1], -1.0, 1.0) + nWeightCurr[3];
             }

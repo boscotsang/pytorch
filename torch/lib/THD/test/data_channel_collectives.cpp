@@ -5,7 +5,10 @@
 #include "../base/data_channels/DataChannelMPI.hpp"
 #endif // WITH_MPI
 #include "../base/data_channels/DataChannelTCP.hpp"
+<<<<<<< HEAD
 #include "../base/ChannelEnvVars.hpp"
+=======
+>>>>>>> master
 #include "TestUtils.hpp"
 
 #include <THPP/tensors/THTensor.hpp>
@@ -519,7 +522,11 @@ void test_process_not_in_group(std::shared_ptr<thd::DataChannel> data_channel) {
       data_channel->broadcast(*int_tensor, 0, group)
     )
 
+<<<<<<< HEAD
     if (g_data_channel_type == "gloo") { 
+=======
+    if (g_data_channel_type == "gloo") {
+>>>>>>> master
       return; // XXX: Gloo does not support scatter/gather/reduce
     }
 
@@ -556,7 +563,11 @@ void test_tensors_do_not_match_group_size(std::shared_ptr<thd::DataChannel> data
       std::logic_error,
       data_channel->allGather(raw_tensors, *int_tensor, group)
     )
+<<<<<<< HEAD
     
+=======
+
+>>>>>>> master
     if (g_data_channel_type == "gloo") {
       return; // XXX: Gloo does not support scatter/gather
     }
@@ -593,7 +604,11 @@ void test_tensors_are_not_the_same(std::shared_ptr<thd::DataChannel> data_channe
       std::logic_error,
       data_channel->allGather(raw_tensors, *int_tensor, group)
     )
+<<<<<<< HEAD
     
+=======
+
+>>>>>>> master
     if (g_data_channel_type == "gloo") {
       return; // XXX: Gloo does not support scatter/gather
     }
@@ -647,10 +662,17 @@ void run_all_tests(std::shared_ptr<thd::DataChannel> data_channel, int workers) 
 
 void init_tcp_master(int workers) {
   g_mutex.lock();
+<<<<<<< HEAD
   setenv(thd::WORLD_SIZE_ENV, std::to_string((workers + 1)).data(), 1);
   setenv(thd::RANK_ENV, "0", 1);
   setenv(thd::MASTER_PORT_ENV, std::to_string(MASTER_PORT).data(), 1);
   auto masterChannel = std::make_shared<thd::DataChannelTCP>(); // reads all env variable
+=======
+  setenv(WORLD_SIZE_ENV, std::to_string((workers + 1)).data(), 1);
+  setenv(RANK_ENV, "0", 1);
+  setenv(MASTER_PORT_ENV, std::to_string(MASTER_PORT).data(), 1);
+  auto masterChannel = std::make_shared<thd::DataChannelTCP>(thd::getInitConfig("env://")); // reads all env variable
+>>>>>>> master
   g_mutex.unlock();
 
   assert(masterChannel->init());
@@ -665,9 +687,15 @@ void init_tcp_master(int workers) {
 
 void init_tcp_worker(unsigned int id, int workers) {
   g_mutex.lock();
+<<<<<<< HEAD
   setenv(thd::RANK_ENV, std::to_string(id).data(), 1);
   setenv(thd::MASTER_ADDR_ENV, std::string("127.0.0.1:" + std::to_string(MASTER_PORT)).data(), 1);
   auto worker_channel = std::make_shared<thd::DataChannelTCP>(); // reads all env variable
+=======
+  setenv(RANK_ENV, std::to_string(id).data(), 1);
+  setenv(MASTER_ADDR_ENV, std::string("127.0.0.1:" + std::to_string(MASTER_PORT)).data(), 1);
+  auto worker_channel = std::make_shared<thd::DataChannelTCP>(thd::getInitConfig("env://")); // reads all env variable
+>>>>>>> master
   g_mutex.unlock();
 
   assert(worker_channel->init());
@@ -677,10 +705,17 @@ void init_tcp_worker(unsigned int id, int workers) {
 #ifdef WITH_GLOO
 void init_gloo_master(int workers) {
   g_mutex.lock();
+<<<<<<< HEAD
   setenv(thd::WORLD_SIZE_ENV, std::to_string((workers + 1)).data(), 1);
   setenv(thd::RANK_ENV, "0", 1);
   setenv(thd::MASTER_PORT_ENV, std::to_string(MASTER_PORT).data(), 1);
   auto masterChannel = std::make_shared<thd::DataChannelGloo>(); // reads all env variable
+=======
+  setenv(WORLD_SIZE_ENV, std::to_string((workers + 1)).data(), 1);
+  setenv(RANK_ENV, "0", 1);
+  setenv(MASTER_PORT_ENV, std::to_string(MASTER_PORT).data(), 1);
+  auto masterChannel = std::make_shared<thd::DataChannelGloo>(thd::getInitConfig("env://")); // reads all env variable
+>>>>>>> master
   g_mutex.unlock();
 
   assert(masterChannel->init());
@@ -691,9 +726,15 @@ void init_gloo_master(int workers) {
 
 void init_gloo_worker(unsigned int id, int workers) {
   g_mutex.lock();
+<<<<<<< HEAD
   setenv(thd::RANK_ENV, std::to_string(id).data(), 1);
   setenv(thd::MASTER_ADDR_ENV, std::string("127.0.0.1:" + std::to_string(MASTER_PORT)).data(), 1);
   auto worker_channel = std::make_shared<thd::DataChannelGloo>(); // reads all env variable
+=======
+  setenv(RANK_ENV, std::to_string(id).data(), 1);
+  setenv(MASTER_ADDR_ENV, std::string("127.0.0.1:" + std::to_string(MASTER_PORT)).data(), 1);
+  auto worker_channel = std::make_shared<thd::DataChannelGloo>(thd::getInitConfig("env://")); // reads all env variable
+>>>>>>> master
   g_mutex.unlock();
 
   assert(worker_channel->init());
@@ -728,10 +769,17 @@ int main(int argc, char const *argv[]) {
       for (int id = 1; id <= workers; ++id) {
         g_all_workers.push_back(std::thread(init_tcp_worker, id, workers));
       }
+<<<<<<< HEAD
 
       tcp_master_thread.join();
       g_all_workers.clear();
 
+=======
+
+      tcp_master_thread.join();
+      g_all_workers.clear();
+
+>>>>>>> master
       std::cout << "TCP - OK" << std::endl;
     }
 
@@ -752,7 +800,11 @@ int main(int argc, char const *argv[]) {
       for (auto& worker : g_all_workers) {
         worker.join();
       }
+<<<<<<< HEAD
       
+=======
+
+>>>>>>> master
       gloo_master_thread.join();
       g_all_workers.clear();
 

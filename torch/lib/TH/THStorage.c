@@ -15,6 +15,7 @@
 
 
 THDescBuff THLongStorage_sizeDesc(const THLongStorage *size) {
+<<<<<<< HEAD
   const int L = TH_DESC_BUFF_LEN;
   THDescBuff buf;
   char *str = buf.str;
@@ -34,9 +35,12 @@ THDescBuff THLongStorage_sizeDesc(const THLongStorage *size) {
     snprintf(str+L-5, 5, "...]");
   }
   return buf;
+=======
+  return _THSizeDesc(size->data, size->size);
+>>>>>>> master
 }
 
-TH_API THLongStorage *THLongStorage_newInferSize(THLongStorage *size, ptrdiff_t nElement)
+THLongStorage *THLongStorage_newInferSize(THLongStorage *size, ptrdiff_t nElement)
 {
   ptrdiff_t total_size = (size->size > 0 ? 1 : 0);
   ptrdiff_t dim_infer = -1;
@@ -66,6 +70,7 @@ TH_API THLongStorage *THLongStorage_newInferSize(THLongStorage *size, ptrdiff_t 
   return copy;
 }
 
+<<<<<<< HEAD
 TH_API void THLongStorage_calculateExpandGeometry(int64_t *tensorSizes, int64_t *tensorStrides, int64_t tensorDim, THLongStorage *sizes, int64_t **esz, int64_t **est) {
   ptrdiff_t ndim = THLongStorage_size(sizes);
   int64_t numUnsqueezed = ndim - tensorDim;
@@ -76,8 +81,40 @@ TH_API void THLongStorage_calculateExpandGeometry(int64_t *tensorSizes, int64_t 
   for (int64_t i = numUnsqueezed; i < ndim; ++i) {
     expandedSizes[i] = tensorSizes[i - numUnsqueezed];
     expandedStrides[i] = tensorStrides[i - numUnsqueezed];
-  }
+=======
+int THLongStorage_inferSize2(THLongStorage *output, long *sizesA, long dimsA, long *sizesB, long dimsB,
+                             char *error_buffer, int buffer_len) {
+  THArgCheck(sizesA != NULL, 1, "sizesA must not be null");
+  THArgCheck(sizesB != NULL, 2, "sizesB must not be null");
+  THArgCheck(dimsA, 1, "Can't expand empty tensor a");
+  THArgCheck(dimsB, 1, "Can't expand empty tensor b");
+  ptrdiff_t ndim = dimsA > dimsB ? dimsA : dimsB;
 
+  long *expandedSizes = THAlloc(sizeof(long)*ndim);
+
+  for (long i = ndim - 1; i >= 0; --i) {
+    long offset = ndim - 1 - i;
+    long dimA = dimsA - 1 - offset;
+    long dimB = dimsB - 1 - offset;
+    long sizeA = (dimA >= 0) ? sizesA[dimA] : 1;
+    long sizeB = (dimB >= 0) ? sizesB[dimB] : 1;
+    if (sizeA == sizeB || sizeA == 1 || sizeB == 1) {
+      expandedSizes[i] = THMax(sizeA, sizeB);
+    } else {
+      THFree(expandedSizes);
+      snprintf(error_buffer, buffer_len, "The size of tensor a (%ld) must match the size of tensor b (%ld) at "
+               "non-singleton dimension %ld.", sizeA, sizeB, i);
+      return -1;
+    }
+>>>>>>> master
+  }
+  THLongStorage_resize(output, ndim);
+  memcpy(THLongStorage_data(output), expandedSizes, sizeof(long)*ndim);
+  THFree(expandedSizes);
+  return 0;
+}
+
+<<<<<<< HEAD
   for (int64_t i = numUnsqueezed - 1; i > -1; --i) {
     expandedSizes[i] = 1;
     expandedStrides[i] = expandedSizes[i+1] * expandedStrides[i+1];
@@ -91,14 +128,77 @@ TH_API void THLongStorage_calculateExpandGeometry(int64_t *tensorSizes, int64_t 
       if (targetSize != 1) {
         expandedSizes[i] = targetSize;
         expandedStrides[i] = 0;
+=======
+int THLongStorage_inferSizeN(THLongStorage *output, int n, long **sizes, long *dims,
+                             char *error_buffer, int buffer_len) {
+  THArgCheck(n > 0, 2, "n must be greater than 0");
+  THArgCheck(sizes != NULL, 1, "sizes must not be null");
+  THArgCheck(dims != NULL, 1, "dims must not be null");
+
+  ptrdiff_t ndim = 0;
+  for (int j = 0; j < n; ++j) {
+    THArgCheck(sizes[ j ] != NULL, 1, "size %d must not be null", j);
+    THArgCheck(dims[ j ], 1, "Can't expand empty tensor %d", j);
+    ndim = dims[ j ] > ndim ? dims[ j ] : ndim;
+  }
+
+  long *expandedSizes = THAlloc(sizeof(long)*ndim);
+
+  for (long i = ndim - 1; i >= 0; --i) {
+    expandedSizes[ i ] = 1;
+    long offset = ndim - 1 - i;
+    for (int j  = 0; j < n; ++j) {
+      long dim = dims[ j ] - 1 - offset;
+      long size = (dim >= 0) ? sizes[ j ][ dim ] : 1;
+      if (size == expandedSizes[ i ] || size == 1 || expandedSizes[ i ] == 1) {
+        expandedSizes[ i ] =  THMax(expandedSizes[ i ], size);
+      } else {
+        THFree(expandedSizes);
+        snprintf(error_buffer, buffer_len, "The size of tensor %i (%ld) must match the expanded size"
+                 "of tensor (%ld) at non-singleton dimension %ld.", j, size, expandedSizes[ i ], i);
+        return -1;
       }
-    } else if (size != targetSize) {
-      THFree(expandedSizes);
-      THFree(expandedStrides);
-      THError("The expanded size of the tensor (%d) must match the existing size (%d) at \
-              non-singleton dimension %ld.", targetSize, size, i);
     }
   }
-  *esz = expandedSizes;
-  *est = expandedStrides;
+  THLongStorage_resize(output, ndim);
+  memcpy(THLongStorage_data(output), expandedSizes, sizeof(long)*ndim);
+  THFree(expandedSizes);
+  return 0;
+}
+
+int THLongStorage_inferExpandGeometry(long *tensorSizes, long *tensorStrides, long tensorDim,
+                                        THLongStorage *sizes, long **expandedSizes, long **expandedStrides,
+                                        char *error_buffer, int buffer_len) {
+  ptrdiff_t ndim = THLongStorage_size(sizes);
+
+  long *expandedSizesCalc = THAlloc(sizeof(long)*ndim);
+  long *expandedStridesCalc = THAlloc(sizeof(long)*ndim);
+
+  // create a new geometry for the tensors
+  for (long i = ndim - 1; i >= 0; --i) {
+    long offset = ndim - 1 - i;
+    long dim = tensorDim - 1 - offset;
+    long size = (dim >= 0) ? tensorSizes[dim] : 1;
+    long stride = (dim >= 0) ?
+        tensorStrides[dim] : expandedSizesCalc[i + 1] * expandedStridesCalc[i+1];
+    long targetSize = THLongStorage_data(sizes)[i];
+    if (size != targetSize) {
+      if (size == 1) {
+        size = targetSize;
+        stride = 0;
+      } else {
+        THFree(expandedSizesCalc);
+        THFree(expandedStridesCalc);
+        snprintf(error_buffer, buffer_len, "The expanded size of the tensor (%ld) must match the existing size (%ld) at "
+                 "non-singleton dimension %ld.", targetSize, size, i);
+        return -1;
+>>>>>>> master
+      }
+    }
+    expandedSizesCalc[i] = size;
+    expandedStridesCalc[i] = stride;
+  }
+  *expandedSizes = expandedSizesCalc;
+  *expandedStrides = expandedStridesCalc;
+  return 0;
 }

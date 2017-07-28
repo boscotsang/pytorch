@@ -8,8 +8,6 @@ class _InstanceNorm(_BatchNorm):
             num_features, eps, momentum, affine)
 
     def forward(self, input):
-        self._check_input_dim(input)
-
         b, c = input.size(0), input.size(1)
 
         # Repeat stored stats and affine transform params
@@ -26,11 +24,11 @@ class _InstanceNorm(_BatchNorm):
 
         out = F.batch_norm(
             input_reshaped, running_mean, running_var, weight, bias,
-            self.training, self.momentum, self.eps)
+            True, self.momentum, self.eps)
 
         # Reshape back
-        self.running_mean.copy_(running_mean.view(b, c).mean(0))
-        self.running_var.copy_(running_var.view(b, c).mean(0))
+        self.running_mean.copy_(running_mean.view(b, c).mean(0, keepdim=False))
+        self.running_var.copy_(running_var.view(b, c).mean(0, keepdim=False))
 
         return out.view(b, c, *input.size()[2:])
 
@@ -71,13 +69,17 @@ class InstanceNorm1d(_InstanceNorm):
         >>> m = nn.InstanceNorm1d(100)
         >>> # With Learnable Parameters
         >>> m = nn.InstanceNorm1d(100, affine=True)
+<<<<<<< HEAD
         >>> input = autograd.Variable(torch.randn(20, 100))
+=======
+        >>> input = autograd.Variable(torch.randn(20, 100, 40))
+>>>>>>> master
         >>> output = m(input)
     """
 
     def _check_input_dim(self, input):
         if input.dim() != 3:
-            raise ValueError('expected 2D or 3D input (got {}D input)'
+            raise ValueError('expected 3D input (got {}D input)'
                              .format(input.dim()))
         super(InstanceNorm1d, self)._check_input_dim(input)
 

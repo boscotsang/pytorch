@@ -5,6 +5,7 @@ torch.egg-info/
 torch/version.py
 torch/csrc/generic/TensorMethods.cpp
 torch/lib/*.so*
+torch/lib/*.a*
 torch/lib/*.dylib*
 torch/lib/*.h
 torch/lib/build
@@ -34,3 +35,17 @@ test/.coverage
 */**/*.so*
 */**/*.dylib*
 test/data/legacy_serialized.pt
+test/data/linear.pt
+
+# IPython notebook checkpoints
+.ipynb_checkpoints
+
+# Editor temporaries
+*.swn
+*.swo
+*.swp
+*~
+
+# OSX dir files
+.DS_Store
+
