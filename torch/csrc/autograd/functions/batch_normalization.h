@@ -1,5 +1,6 @@
 #pragma once
 
+#include <Python.h>
 #include <memory>
 #include <THPP/THPP.h>
 
@@ -34,12 +35,15 @@ struct BatchNormBackward : public Function, public BatchNormParams {
       SavedVariable weight,
       SavedVariable bias)
     : Function(std::move(flags))
-    , BatchNormParams(std::move(params))
-    , save_mean(std::move(save_mean))
-    , save_std(std::move(save_std))
-    , input(std::move(input))
-    , weight(std::move(weight))
-    , bias(std::move(bias)) {}
+    , BatchNormParams(std::move(params)) {
+      if (is_executable) {
+        this->save_mean = std::move(save_mean);
+        this->save_std = std::move(save_std);
+        this->input = std::move(input);
+        this->weight = std::move(weight);
+        this->bias = std::move(bias);
+      }
+    }
 
   virtual variable_list apply(const variable_list& gradOutputs) override;
 
@@ -50,6 +54,37 @@ struct BatchNormBackward : public Function, public BatchNormParams {
   SavedVariable input;
   SavedVariable weight;
   SavedVariable bias;
+};
+
+struct BatchNormBackwardBackward : public Function, public BatchNormParams {
+  BatchNormBackwardBackward(
+      FunctionFlags flags,
+      BatchNormParams params,
+      std::unique_ptr<thpp::Tensor> save_mean,
+      std::unique_ptr<thpp::Tensor> save_std,
+      SavedVariable input,
+      SavedVariable weight,
+      SavedVariable grad_output)
+    : Function(std::move(flags))
+    , BatchNormParams(std::move(params)) {
+      if (is_executable) {
+        this->save_mean = std::move(save_mean);
+        this->save_std = std::move(save_std);
+        this->input = std::move(input);
+        this->weight = std::move(weight);
+        this->grad_output = std::move(grad_output);
+      }
+    }
+
+  virtual variable_list apply(const variable_list& grad_grad_inputs) override;
+
+  virtual void releaseVariables() override;
+
+  std::unique_ptr<thpp::Tensor> save_mean;
+  std::unique_ptr<thpp::Tensor> save_std;
+  SavedVariable input;
+  SavedVariable weight;
+  SavedVariable grad_output;
 };
 
 }}

@@ -34,6 +34,19 @@ cudnnDataType_t getCudnnDataType(const thpp::Tensor& tensor)
   throw std::runtime_error(msg);
 }
 
+cudnnDataType_t getCudnnDataType(const at::Tensor& tensor) {
+  if (tensor.type().scalarType() == at::kFloat) {
+    return CUDNN_DATA_FLOAT;
+  } else if (tensor.type().scalarType() == at::kDouble) {
+    return CUDNN_DATA_DOUBLE;
+  } else if (tensor.type().scalarType() == at::kHalf) {
+    return CUDNN_DATA_HALF;
+  }
+  std::string msg("getCudnnDataType() not supported for ");
+  msg += at::toString(tensor.type().scalarType());
+  throw std::runtime_error(msg);
+}
+
 PyObject * getTensorClass(PyObject *args)
 {
   for (int i = 0; i < PyTuple_Size(args); i++) {
@@ -51,9 +64,11 @@ void _THVoidTensor_assertContiguous(THVoidTensor *tensor, const std::string& nam
   // Contiguity check
   long long expectedStride = 1;
   for (int i = tensor->nDimension-1; i >= 0; --i) {
-    if (tensor->stride[i] != expectedStride)
-      throw std::invalid_argument(error_str + name);
-    expectedStride *= tensor->size[i];
+    if (tensor->size[i] != 1) {
+      if (tensor->stride[i] != expectedStride)
+        throw std::invalid_argument(error_str + name);
+      expectedStride *= tensor->size[i];
+    }
   }
 }
 

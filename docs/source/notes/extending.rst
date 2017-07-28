@@ -33,7 +33,7 @@ methods:
   as many arguments as there were outputs, with each of them representing
   gradient w.r.t. that output. It should return as many :class:`Tensor` s as
   there were inputs, with each of them containing the gradient w.r.t.
-  corresponding input. If you inputs didn't require gradient (see
+  corresponding input. If your inputs didn't require gradient (see
   :attr:`~Variable.needs_input_grad`), or it was non-differentiable, you
   can return :class:`None`. Also, if you have optional arguments to
   :meth:`~Variable.forward` you can return more gradients than there were
@@ -95,7 +95,7 @@ numerical approximations using small finite differences::
     # gradchek takes a tuple of tensor as input, check if your gradient
     # evaluated with these tensors are close enough to numerical
     # approximations and returns True if they all verify this condition.
-    input = (Variable(torch.randn(20,20).double(), requires_grad=True),)
+    input = (Variable(torch.randn(20,20).double(), requires_grad=True), Variable(torch.randn(30,20).double(), requires_grad=True),)
     test = gradcheck(Linear(), input, eps=1e-6, atol=1e-4)
     print(test)
 
