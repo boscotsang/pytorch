@@ -29,8 +29,8 @@ struct BatchNormBackward : public Function, public BatchNormParams {
   BatchNormBackward(
       FunctionFlags flags,
       BatchNormParams params,
-      std::unique_ptr<thpp::Tensor> save_mean,
-      std::unique_ptr<thpp::Tensor> save_std,
+      std::shared_ptr<thpp::Tensor> save_mean,
+      std::shared_ptr<thpp::Tensor> save_std,
       SavedVariable input,
       SavedVariable weight,
       SavedVariable bias)
@@ -49,8 +49,8 @@ struct BatchNormBackward : public Function, public BatchNormParams {
 
   virtual void releaseVariables() override;
 
-  std::unique_ptr<thpp::Tensor> save_mean;
-  std::unique_ptr<thpp::Tensor> save_std;
+  std::shared_ptr<thpp::Tensor> save_mean;
+  std::shared_ptr<thpp::Tensor> save_std;
   SavedVariable input;
   SavedVariable weight;
   SavedVariable bias;
@@ -60,8 +60,8 @@ struct BatchNormBackwardBackward : public Function, public BatchNormParams {
   BatchNormBackwardBackward(
       FunctionFlags flags,
       BatchNormParams params,
-      std::unique_ptr<thpp::Tensor> save_mean,
-      std::unique_ptr<thpp::Tensor> save_std,
+      std::shared_ptr<thpp::Tensor> save_mean,
+      std::shared_ptr<thpp::Tensor> save_std,
       SavedVariable input,
       SavedVariable weight,
       SavedVariable grad_output)
@@ -80,8 +80,8 @@ struct BatchNormBackwardBackward : public Function, public BatchNormParams {
 
   virtual void releaseVariables() override;
 
-  std::unique_ptr<thpp::Tensor> save_mean;
-  std::unique_ptr<thpp::Tensor> save_std;
+  std::shared_ptr<thpp::Tensor> save_mean;
+  std::shared_ptr<thpp::Tensor> save_std;
   SavedVariable input;
   SavedVariable weight;
   SavedVariable grad_output;
