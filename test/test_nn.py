@@ -1855,40 +1855,51 @@ class TestNN(NNTestCase):
             (hx + cx).sum().backward()
 
     @unittest.skipIf(not TEST_CUDA, 'CUDA not available')
-    def test_LSTM_cudnn_weight_format(self):
-        rnn = nn.LSTM(10, 20, batch_first=True).cuda()
-        input = Variable(torch.randn(5, 4, 10).cuda(), requires_grad=True)
-        hx = Variable(torch.randn(1, 5, 20).cuda(), requires_grad=True)
-        cx = Variable(torch.randn(1, 5, 20).cuda(), requires_grad=True)
-        all_vars = [input, hx, cx] + list(rnn.parameters())
+    def test_cudnn_weight_format(self):
+        rnns = [
+            nn.LSTM(10, 20, batch_first=True),
+            nn.GRU(10, 20, batch_first=True),
+            nn.RNN(10, 20, batch_first=True)
+        ]
+        first_warn = True
+        for rnn in rnns:
+            rnn.cuda()
+            input = Variable(torch.randn(5, 4, 10).cuda(), requires_grad=True)
+            hx = Variable(torch.randn(1, 5, 20).cuda(), requires_grad=True)
+            all_vars = [input, hx] + list(rnn.parameters())
+            if isinstance(rnn, nn.LSTM):
+                cx = Variable(torch.randn(1, 5, 20).cuda(), requires_grad=True)
+                all_vars[2:2] = [cx]
+                hx = (hx, cx)
 
-        output = rnn(input, (hx, cx))
-        output[0].sum().backward()
-        grads = [v.grad.data.clone() for v in all_vars]
-        for v in all_vars:
-            v.grad.data.zero_()
-
-        # Weights will no longer view onto the same chunk of memory
-        weight = all_vars[4]
-        weight_data = weight.data.clone()
-        weight.data.set_(weight_data)
-
-        for i in range(2):
-            with warnings.catch_warnings(record=True) as w:
-                output_noncontig = rnn(input, (hx, cx))
-            if i == 0:
-                self.assertEqual(len(w), 1)
-                self.assertIn('weights are not part of single contiguous chunk of memory', w[0].message.args[0])
-            output_noncontig[0].sum().backward()
-            grads_noncontig = [v.grad.data.clone() for v in all_vars]
+            output = rnn(input, hx)
+            output[0].sum().backward()
+            grads = [v.grad.data.clone() for v in all_vars]
             for v in all_vars:
                 v.grad.data.zero_()
-            self.assertEqual(output, output_noncontig)
-            self.assertEqual(grads_noncontig, grads)
 
-        # Make sure these still share storage
-        weight_data[:] = 4
-        self.assertEqual(weight_data, all_vars[4].data)
+            # Weights will no longer view onto the same chunk of memory
+            weight = all_vars[4]
+            weight_data = weight.data.clone()
+            weight.data.set_(weight_data)
+
+            for i in range(2):
+                with warnings.catch_warnings(record=True) as w:
+                    output_noncontig = rnn(input, hx)
+                if first_warn:
+                    self.assertEqual(len(w), 1)
+                    self.assertIn('weights are not part of single contiguous chunk of memory', w[0].message.args[0])
+                    first_warn = False
+                output_noncontig[0].sum().backward()
+                grads_noncontig = [v.grad.data.clone() for v in all_vars]
+                for v in all_vars:
+                    v.grad.data.zero_()
+                self.assertEqual(output, output_noncontig)
+                self.assertEqual(grads_noncontig, grads)
+
+            # Make sure these still share storage
+            weight_data[:] = 4
+            self.assertEqual(weight_data, all_vars[4].data)
 
     @unittest.skipIf(not TEST_CUDA, 'CUDA not available')
     def test_cuda_rnn_fused(self):
@@ -2723,8 +2734,8 @@ class TestNN(NNTestCase):
         batch_size = 2
         for kern, inp_size, dilations in [(3, 6, [1, 2]), (3, 7, [1]), (4, 9, [1])]:
             for stride, padding, chan_in, chan_out, dilation in \
-                    product([1, 2], [0, 2], [2], [3], dilations):
-                no_weight = stride == 2
+                    product([1, 2], [0, 1, 2], [2], [3], dilations):
+                no_weight = False
                 result = self.run_conv_double_back_test(kern, stride,
                                                         padding, chan_in, chan_out,
                                                         batch_size, inp_size, dilation,
@@ -2742,11 +2753,11 @@ class TestNN(NNTestCase):
 
     def test_conv_double_backward_no_bias(self):
         kern = 3
-        stride = 1
-        padding = 2
+        stride = 2
         chan_in, chan_out = 2, 4
         batch_size = 2
-        inp_size = 6
+        inp_size = 5
+        padding = 1
         dilation = 1
         no_weight = False
         use_bias = True
@@ -2791,18 +2802,16 @@ class TestNN(NNTestCase):
                         "\ndilation: " + str(dilation) +
                         "\ngroups: " + str(groups))
 
-    def test_error_conv_double_backward(self):
+    def test_conv_double_backward_stride(self):
         batch_size = 2
 
-        # Cannot provide ggW when stride is > 1
         for kern, inp_size, dilations in [(3, 5, [1, 2]), (3, 7, [1])]:
             for stride, padding, chan_in, chan_out, dilation in product([2], [0, 1], [1], [2], dilations):
                 no_weight = False
-                with self.assertRaises(RuntimeError):
-                    self.run_conv_double_back_test(kern, stride,
-                                                   padding, chan_in, chan_out,
-                                                   batch_size, inp_size, dilation,
-                                                   no_weight)
+                self.run_conv_double_back_test(kern, stride,
+                                               padding, chan_in, chan_out,
+                                               batch_size, inp_size, dilation,
+                                               no_weight)
 
     @unittest.skipIf(not TEST_CUDA, "CUDA unavailable")
     def test_conv_double_backward_cuda(self):
@@ -3243,6 +3252,7 @@ new_module_tests = [
         constructor_args=(10,),
         input_size=(4, 10),
         cudnn=True,
+        check_eval=True,
         desc='affine',
     ),
     dict(
@@ -3250,6 +3260,7 @@ new_module_tests = [
         constructor_args=(5,),
         input_size=(4, 5, 3),
         cudnn=True,
+        check_eval=True,
         desc='3d_input',
     ),
     dict(
@@ -3257,6 +3268,7 @@ new_module_tests = [
         constructor_args=(10, 1e-3, 0.3, False),
         input_size=(4, 10),
         cudnn=True,
+        check_eval=True,
         desc='not_affine',
     ),
     dict(
@@ -3264,6 +3276,7 @@ new_module_tests = [
         constructor_args=(5, 1e-3, 0.3, False),
         input_size=(4, 5, 3),
         cudnn=True,
+        check_eval=True,
         desc='3d_input_not_affine',
     ),
     dict(
@@ -3271,12 +3284,14 @@ new_module_tests = [
         constructor_args=(3,),
         input_size=(2, 3, 6, 6),
         cudnn=True,
+        check_eval=True,
     ),
     dict(
         module_name='BatchNorm2d',
         constructor_args=(3, 1e-3, 0.8),
         input_size=(2, 3, 6, 6),
         cudnn=True,
+        check_eval=True,
         desc='momentum',
     ),
     dict(
@@ -3284,6 +3299,7 @@ new_module_tests = [
         constructor_args=(3, 1e-3, 0.8, False),
         input_size=(2, 3, 6, 6),
         cudnn=True,
+        check_eval=True,
         desc='not_affine',
     ),
     dict(
@@ -3291,12 +3307,14 @@ new_module_tests = [
         constructor_args=(3,),
         input_size=(2, 3, 4, 4, 4),
         cudnn=True,
+        check_eval=True,
     ),
     dict(
         module_name='BatchNorm3d',
         constructor_args=(3, 1e-3, 0.7),
         input_size=(2, 3, 4, 4, 4),
         cudnn=True,
+        check_eval=True,
         desc='momentum',
     ),
     dict(
@@ -3304,6 +3322,7 @@ new_module_tests = [
         constructor_args=(3, 1e-3, 0.7, False),
         input_size=(2, 3, 4, 4, 4),
         cudnn=True,
+        check_eval=True,
         desc='not_affine',
     ),
     dict(
@@ -3318,7 +3337,6 @@ new_module_tests = [
         input_size=(2, 4, 10),
         cudnn=True,
         desc='stride',
-        check_gradgrad=False,
     ),
     dict(
         module_name='Conv1d',
@@ -3374,14 +3392,14 @@ new_module_tests = [
         desc='no_bias',
         check_gradgrad=False,
     ),
-    # TODO
-    # dict(
-    #     module_name='ConvTranspose1d',
-    #     constructor_args=(3, 4, 3, 2, 1, 1, 1, True, 2),
-    #     input_size=(1, 3, 6),
-    #     cudnn=True,
-    #     desc='dilated'
-    # ),
+    dict(
+        module_name='ConvTranspose1d',
+        constructor_args=(3, 4, 3, 2, 1, 1, 1, True, 2),
+        input_size=(1, 3, 6),
+        cudnn=True,
+        desc='dilated',
+        check_gradgrad=False,
+    ),
     dict(
         module_name='MaxPool1d',
         constructor_args=(4,),
@@ -3405,7 +3423,6 @@ new_module_tests = [
         input_size=(2, 3, 6, 6),
         cudnn=True,
         desc='strided',
-        check_gradgrad=False
     ),
     dict(
         module_name='Conv2d',
@@ -3413,7 +3430,6 @@ new_module_tests = [
         input_size=(2, 3, 6, 6),
         cudnn=True,
         desc='padding',
-        check_gradgrad=False
     ),
     dict(
         module_name='Conv2d',
@@ -3421,7 +3437,6 @@ new_module_tests = [
         input_size=(2, 3, 8, 8),
         cudnn=True,
         desc='dilated',
-        check_gradgrad=False,
     ),
     dict(
         module_name='Conv2d',
@@ -3448,14 +3463,14 @@ new_module_tests = [
         input_size=(1, 3, 7, 6),
         check_gradgrad=False,
     ),
-    # TODO
-    # dict(
-    #     module_name='ConvTranspose2d',
-    #     constructor_args=(3, 4, 3, (2, 3), 1, (1, 1), 1, False, (2, 2)),
-    #     input_size=(1, 3, 6, 7),
-    #     cudnn=True,
-    #     desc='dilated'
-    # ),
+    dict(
+        module_name='ConvTranspose2d',
+        constructor_args=(3, 4, 3, (2, 3), 1, (1, 1), 1, False, (2, 2)),
+        input_size=(1, 3, 6, 7),
+        cudnn=True,
+        desc='dilated',
+        check_gradgrad=False,
+    ),
     dict(
         module_name='ConvTranspose2d',
         constructor_args=(3, 4, 3, (2, 3), 1, (1, 1), 1, False),
@@ -3539,6 +3554,12 @@ new_module_tests = [
         input_size=(2, 3, 4, 4)
     ),
     dict(
+        module_name='ZeroPad2d',
+        constructor_args=((-1, -1, -1, -2),),
+        input_size=(2, 3, 4, 4),
+        desc='negative_dims'
+    ),
+    dict(
         module_name='ConstantPad2d',
         constructor_args=((1, 2, 3, 4), 2),
         input_size=(2, 3, 4, 4)
@@ -3548,7 +3569,6 @@ new_module_tests = [
         constructor_args=(3, 4, (2, 3, 4)),
         input_size=(2, 3, 3, 4, 5),
         cudnn=True,
-        check_gradgrad=False,
     ),
     dict(
         module_name='Conv3d',
@@ -3556,7 +3576,6 @@ new_module_tests = [
         input_size=(2, 3, 3, 4, 5),
         cudnn=True,
         desc='no_bias',
-        check_gradgrad=False,
     ),
     dict(
         module_name='Conv3d',
@@ -3564,7 +3583,6 @@ new_module_tests = [
         input_size=(2, 3, 5, 5, 5),
         cudnn=True,
         desc='stride',
-        check_gradgrad=False,
     ),
     dict(
         module_name='Conv3d',
@@ -3572,20 +3590,17 @@ new_module_tests = [
         input_size=(2, 3, 5, 5, 5),
         cudnn=True,
         desc='stride_padding',
-        check_gradgrad=False,
     ),
     dict(
         fullname='Conv3d_groups',
         constructor=lambda: nn.Conv3d(4, 6, kernel_size=3, groups=2),
         input_size=(2, 4, 4, 5, 4),
         cudnn=True,
-        check_gradgrad=False,
     ),
     dict(
         fullname='Conv3d_dilated',
         constructor=lambda: nn.Conv3d(3, 4, kernel_size=2, dilation=2),
         input_size=(2, 3, 5, 5, 5),
-        check_gradgrad=False
     ),
     dict(
         module_name='ConvTranspose3d',
@@ -3594,14 +3609,14 @@ new_module_tests = [
         input_size=(1, 2, 4, 5, 4),
         check_gradgrad=False,
     ),
-    # TODO
-    # dict(
-    #     module_name='ConvTranspose3d',
-    #     constructor_args=(2, 3, (2, 3, 2), 1, 0, 0, 1, True, (2, 2, 2)),
-    #     cudnn=True,
-    #     input_size=(1, 2, 4, 5, 4),
-    #     desc='dilated'
-    # ),
+    dict(
+        module_name='ConvTranspose3d',
+        constructor_args=(2, 3, (2, 3, 2), (3, 2, 3), 0, 0, 1, True, (2, 3, 2)),
+        cudnn=True,
+        input_size=(1, 2, 4, 5, 4),
+        desc='dilated',
+        check_gradgrad=False,
+    ),
     dict(
         module_name='MaxPool3d',
         constructor_args=((2, 2, 2),),
@@ -3849,6 +3864,21 @@ for test_params in module_tests + new_module_tests:
         test_params['constructor'] = getattr(nn, name)
     test = NewModuleTest(**test_params)
     add_test(test)
+    if 'check_eval' in test_params:
+        # create a new test that is identical but that sets module.training to False
+        test_params['desc'] = test_params.get('desc', '') + 'eval'
+
+        def gen_eval_constructor(constructor):
+            def eval_constructor(*args, **kwargs):
+                cons = constructor(*args, **kwargs)
+                cons.training = False
+                return cons
+            eval_constructor.__name__ = constructor.__name__
+            return eval_constructor
+
+        test_params['constructor'] = gen_eval_constructor(test_params['constructor'])
+        test = NewModuleTest(**test_params)
+        add_test(test)
 
 for test_params in criterion_tests + new_criterion_tests:
     name = test_params.pop('module_name')
